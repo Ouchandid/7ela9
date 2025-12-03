@@ -1,0 +1,286 @@
+{% extends "layout.html" %}
+{% block title %}7ela9.com - Find & Book Your Next Coiffeur Appointment{% endblock %}
+{% block content %}
+
+<div class="page-transition container mx-auto px-4 py-12 min-h-screen">
+    
+    <!-- Hero Section -->
+    <header class="text-center mb-16">
+        <h1 class="text-6xl font-extrabold text-white mb-4 tracking-tight drop-shadow-lg" style="text-shadow: 0 0 20px #FF69B4;">
+            <span class="text-hot-pink">7ela9.com:</span> The Future of Hair Booking
+        </h1>
+        <p class="text-2xl text-gray-400 max-w-4xl mx-auto font-light">
+            Instantly connect with the best independent coiffeurs and mobile stylists in your city.
+            View portfolios, read reviews, and book your next style effortlessly.
+        </p>
+        <div class="mt-8 flex justify-center space-x-4">
+            <a href="{{ url_for('signup_client') }}" class="cta-button bg-hot-pink hover:bg-pink-700 text-white font-bold py-3 px-8 rounded-full shadow-lg transform hover:scale-105 transition duration-300">
+                Start as a Client
+            </a>
+            <a href="{{ url_for('signup_coiffeur') }}" class="cta-button border border-hot-pink text-hot-pink hover:bg-hot-pink/20 font-bold py-3 px-8 rounded-full shadow-lg transform hover:scale-105 transition duration-300">
+                Join as a Coiffeur
+            </a>
+        </div>
+    </header>
+
+    <!-- 1. PLATFORM PURPOSE & VALUE PROPOSITION -->
+    <section class="glass-card mb-16 p-8 rounded-xl shadow-2xl border-2 border-pink-500/30 text-white">
+        <h2 class="text-4xl font-bold text-white text-center mb-8">What is 7ela9.com?</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 text-gray-300">
+            
+            <!-- Purpose 1: Showcase & Trust -->
+            <div class="text-center p-4 border border-gray-700/50 rounded-lg">
+                <svg data-lucide="star" class="w-10 h-10 text-hot-pink mx-auto mb-3 fill-hot-pink/30"></svg>
+                <h3 class="text-xl font-semibold text-white mb-2">Verified Talent Showcase</h3>
+                <p class="text-sm">We provide independent coiffeurs a professional platform to display their full portfolio, services, and real client reviews to build a trusted online presence.</p>
+            </div>
+
+            <!-- Purpose 2: Efficiency & Convenience -->
+            <div class="text-center p-4 border border-gray-700/50 rounded-lg">
+                <svg data-lucide="calendar-check" class="w-10 h-10 text-hot-pink mx-auto mb-3"></svg>
+                <h3 class="text-xl font-semibold text-white mb-2">Seamless Booking System</h3>
+                <p class="text-sm">Clients can instantly check availability, request services, and manage appointments without endless calls or messaging, making booking effortless.</p>
+            </div>
+
+            <!-- Purpose 3: Flexibility (Déplacé) -->
+            <div class="text-center p-4 border border-gray-700/50 rounded-lg">
+                <svg data-lucide="map-pin" class="w-10 h-10 text-hot-pink mx-auto mb-3"></svg>
+                <h3 class="text-xl font-semibold text-white mb-2">Mobile Stylist Network</h3>
+                <p class="text-sm">Access the 'Déplacé' network: submit a service request for your location and receive custom price proposals from mobile stylists in an innovative, flexible model.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- 2. SERVICES EXPLANATION -->
+    <section class="mb-16">
+        <h2 class="text-4xl font-bold text-white text-center mb-8">Our Core Services</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            
+            <!-- Service 1: In-Salon Booking -->
+            <div class="glass-card p-6 rounded-xl border-t-4 border-hot-pink/50 shadow-lg">
+                <div class="flex items-center mb-4">
+                    <svg data-lucide="store" class="w-8 h-8 text-hot-pink mr-3"></svg>
+                    <h3 class="text-2xl font-semibold text-white">Classic Salon Appointments</h3>
+                </div>
+                <p class="text-gray-400">Book traditional services (cuts, color, styling) directly with local salons and independent stylists. Check their real-time capacity and join the queue for a quick visit or reserve a slot in advance.</p>
+            </div>
+            
+            <!-- Service 2: Portfolio & Discovery -->
+            <div class="glass-card p-6 rounded-xl border-t-4 border-hot-pink/50 shadow-lg">
+                <div class="flex items-center mb-4">
+                    <svg data-lucide="image" class="w-8 h-8 text-hot-pink mr-3"></svg>
+                    <h3 class="text-2xl font-semibold text-white">Full Digital Portfolio</h3>
+                </div>
+                <p class="text-gray-400">Every coiffeur features a complete profile with high-quality photos, service menus, pricing, and client reviews, ensuring you make an informed choice every time.</p>
+            </div>
+
+            <!-- Service 3: Déplacement Requests (The InDrive Model) -->
+            <div class="glass-card p-6 rounded-xl border-t-4 border-hot-pink/50 shadow-lg">
+                <div class="flex items-center mb-4">
+                    <svg data-lucide="car" class="w-8 h-8 text-hot-pink mr-3"></svg>
+                    <h3 class="text-2xl font-semibold text-white">"Déplacé" Price Bidding</h3>
+                </div>
+                <p class="text-gray-400">Describe your desired mobile service. Mobile stylists ('Déplacé') respond with competitive price proposals. You choose the best offer and confirm the booking instantly.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- 3. STEPS FOR CLIENTS & COIFFEURS -->
+    <section class="glass-card mb-16 p-8 rounded-xl shadow-2xl border-2 border-pink-500/30 text-white">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
+            
+            <!-- Steps for Clients -->
+            <div>
+                <h3 class="text-3xl font-bold text-hot-pink mb-6 flex items-center"><svg data-lucide="user" class="w-6 h-6 mr-2"></svg> Client Steps</h3>
+                <ol class="space-y-4 text-gray-300">
+                    <li class="flex items-start">
+                        <span class="flex-shrink-0 mr-3 text-lg font-bold text-hot-pink bg-pink-900/50 rounded-full w-8 h-8 flex items-center justify-center">1</span>
+                        <p><strong>Search & Discover:</strong> Browse local coiffeurs by city, category (Homme, Femme, Déplacé), or proximity.</p>
+                    </li>
+                    <li class="flex items-start">
+                        <span class="flex-shrink-0 mr-3 text-lg font-bold text-hot-pink bg-pink-900/50 rounded-full w-8 h-8 flex items-center justify-center">2</span>
+                        <p><strong>Check Portfolio:</strong> View their photo gallery, full service menu, and client reviews to pick your favorite.</p>
+                    </li>
+                    <li class="flex items-start">
+                        <span class="flex-shrink-0 mr-3 text-lg font-bold text-hot-pink bg-pink-900/50 rounded-full w-8 h-8 flex items-center justify-center">3</span>
+                        <p><strong>Book or Request:</strong> Reserve a time slot, or for mobile stylists, submit a price request and wait for proposals.</p>
+                    </li>
+                    <li class="flex items-start">
+                        <span class="flex-shrink-0 mr-3 text-lg font-bold text-hot-pink bg-pink-900/50 rounded-full w-8 h-8 flex items-center justify-center">4</span>
+                        <p><strong>Confirm & Go:</strong> Receive confirmation, chat directly (if needed), and enjoy your new look!</p>
+                    </li>
+                </ol>
+            </div>
+
+            <!-- Steps for Coiffeurs -->
+            <div>
+                <h3 class="text-3xl font-bold text-hot-pink mb-6 flex items-center"><svg data-lucide="scissors" class="w-6 h-6 mr-2"></svg> Coiffeur Steps</h3>
+                <ol class="space-y-4 text-gray-300">
+                    <li class="flex items-start">
+                        <span class="flex-shrink-0 mr-3 text-lg font-bold text-hot-pink bg-pink-900/50 rounded-full w-8 h-8 flex items-center justify-center">1</span>
+                        <p><strong>Create Profile:</strong> Set up your profile, address, and category (Homme, Femme, Déplacé).</p>
+                    </li>
+                    <li class="flex items-start">
+                        <span class="flex-shrink-0 mr-3 text-lg font-bold text-hot-pink bg-pink-900/50 rounded-full w-8 h-8 flex items-center justify-center">2</span>
+                        <p><strong>List Services:</strong> Add your detailed service menu with pricing and upload stunning portfolio photos.</p>
+                    </li>
+                    <li class="flex items-start">
+                        <span class="flex-shrink-0 mr-3 text-lg font-bold text-hot-pink bg-pink-900/50 rounded-full w-8 h-8 flex items-center justify-center">3</span>
+                        <p><strong>Manage Bookings:</strong> Receive reservation requests, update capacity, or submit proposals for 'Déplacé' requests.</p>
+                    </li>
+                    <li class="flex items-start">
+                        <span class="flex-shrink-0 mr-3 text-lg font-bold text-hot-pink bg-pink-900/50 rounded-full w-8 h-8 flex items-center justify-center">4</span>
+                        <p><strong>Grow Your Brand:</strong> Use your profile to gain subscribers and build a loyal client base.</p>
+                    </li>
+                </ol>
+            </div>
+        </div>
+    </section>
+    
+    <!-- 4. Coiffeur Preview Section (Existing Logic) -->
+    <section class="mb-12">
+        <h2 class="text-4xl font-bold text-white text-center mb-10">Featured Stylist Profiles</h2>
+        <p class="text-center text-gray-400 max-w-2xl mx-auto mb-10">
+            See a glimpse of the top-rated professionals on 7ela9.com. Log in to explore their full services, capacity status, and book instantly.
+        </p>
+        
+        <!-- Coiffeur Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+            {% for stylist in stylists %}
+            <!-- Stylist Card -->
+            <!-- The card now has a click handler to redirect or show the modal -->
+            <div onclick="handleProfileClick({{ stylist.user.id }})" 
+                class="group block glass-card rounded-xl p-6 text-white hover:border-pink-500 transform hover:scale-[1.03] transition duration-300 cursor-pointer shadow-lg" 
+                aria-label="View profile for {{ stylist.user.name }}">
+                <div class="flex flex-col items-center">
+                    <!-- Profile Image -->
+                    <div class="w-24 h-24 rounded-full overflow-hidden mb-4 border-4 border-hot-pink group-hover:border-white transition duration-300">
+                        <img src="{{ stylist.coiffeur.profile_image if stylist.coiffeur.profile_image else 'https://placehold.co/100x100/111/FF69B4?text=' + stylist.user.name[0] }}" 
+                            alt="{{ stylist.user.name }}" class="w-full h-full object-cover">
+                    </div>
+                    
+                    <h2 class="text-xl font-bold text-white group-hover:text-hot-pink transition duration-300">{{ stylist.user.name }}</h2>
+                    <p class="text-sm text-gray-400 mb-3">{{ stylist.user.city }} | {{ stylist.coiffeur.category }}</p>
+                    
+                    <!-- Ratings -->
+                    <div class="flex items-center mb-4 text-hot-pink">
+                        {% for i in range(5) %}
+                            {% if i < stylist.rating|round(0, 'floor') %}
+                                <svg data-lucide="star" class="w-5 h-5 fill-current"></svg>
+                            {% else %}
+                                <svg data-lucide="star" class="w-5 h-5 text-gray-500"></svg>
+                            {% endif %}
+                        {% endfor %}
+                        <span class="text-gray-300 ml-2 text-sm">({{ stylist.rating|round(1) }})</span>
+                    </div>
+
+                    <!-- Action CTA -->
+                    <button class="w-full mt-2 bg-hot-pink text-white font-semibold py-2 rounded-full cta-button text-center group-hover:bg-pink-700 transition" 
+                            aria-label="View Profile">
+                        View Portfolio
+                    </button>
+                </div>
+            </div>
+            {% else %}
+                <p class="col-span-full text-center text-gray-500 text-lg">No stylists found for preview.</p>
+            {% endfor %}
+        </div>
+        
+        <div class="text-center mt-12">
+            <a href="{{ url_for('search_stylists') }}" class="inline-flex items-center text-lg font-medium text-hot-pink hover:text-white transition duration-200">
+                View All Stylists <svg data-lucide="arrow-right" class="w-5 h-5 ml-2"></svg>
+            </a>
+        </div>
+        
+    </section>
+
+</div>
+
+<!-- Login/Signup Modal (Initially Hidden) -->
+<div id="auth-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-4 transition-opacity duration-300">
+    <div class="glass-card w-full max-w-lg p-8 rounded-xl shadow-2xl relative">
+        <button onclick="closeAuthModal()" class="absolute top-4 right-4 text-gray-400 hover:text-hot-pink transition" aria-label="Close modal">
+            <svg data-lucide="x" class="w-6 h-6"></svg>
+        </button>
+        
+        <h2 class="text-3xl font-bold text-white mb-2 text-center">Access Required</h2>
+        <p class="text-gray-400 mb-8 text-center">Log in or sign up to view the full portfolio, services, and contact details.</p>
+
+        <!-- Login Form -->
+        <form method="POST" action="{{ url_for('login') }}" class="space-y-4">
+            <input type="hidden" name="redirect_url" id="modal-redirect-url">
+            
+            <div>
+                <label for="modal-email" class="block text-sm font-medium text-gray-300 mb-1">Email</label>
+                <input type="email" id="modal-email" name="email" required
+                       class="w-full p-3 rounded-lg bg-gray-800 border border-hot-pink/50 text-white focus:ring-hot-pink focus:border-hot-pink">
+            </div>
+            
+            <div>
+                <label for="modal-password" class="block text-sm font-medium text-gray-300 mb-1">Password</label>
+                <input type="password" id="modal-password" name="password" required
+                       class="w-full p-3 rounded-lg bg-gray-800 border border-hot-pink/50 text-white focus:ring-hot-pink focus:border-hot-pink">
+            </div>
+            
+            <button type="submit" class="cta-button w-full bg-hot-pink text-white font-bold py-3 rounded-lg hover:bg-pink-700 transition">
+                Login
+            </button>
+        </form>
+
+        <div class="mt-6 text-center">
+            <p class="text-gray-500 mb-3">--- OR ---</p>
+            <a href="{{ url_for('signup_client') }}" class="block text-hot-pink hover:text-white font-medium transition">
+                New Client? Sign Up Now
+            </a>
+            <a href="{{ url_for('signup_coiffeur') }}" class="block text-gray-500 hover:text-gray-300 text-sm mt-2 transition">
+                Sign Up as Hairdresser
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Safely check if the user is authenticated (set in Jinja context)
+    const IS_AUTHENTICATED = {{ (current_user is not none and current_user.id is not none) | tojson }};
+    const AUTH_MODAL = document.getElementById('auth-modal');
+    const REDIRECT_URL_INPUT = document.getElementById('modal-redirect-url');
+    
+    // Jinja-provided URL helper function for use in JS
+    function getProfileUrl(coiffeurId) {
+        // Mocking url_for('view_profile', coiffeur_id=coiffeurId)
+        return `/profile/${coiffeurId}`;
+    }
+
+    function handleProfileClick(coiffeurId) {
+        if (IS_AUTHENTICATED) {
+            // User is logged in, redirect directly to the full profile
+            window.location.href = getProfileUrl(coiffeurId);
+        } else {
+            // User is not logged in, show the modal
+            openAuthModal(coiffeurId);
+        }
+    }
+    
+    function openAuthModal(coiffeurId) {
+        // Set the hidden redirect URL in the form
+        REDIRECT_URL_INPUT.value = getProfileUrl(coiffeurId);
+        AUTH_MODAL.classList.remove('hidden');
+    }
+    
+    function closeAuthModal() {
+        AUTH_MODAL.classList.add('hidden');
+    }
+    
+    document.addEventListener('DOMContentLoaded', () => {
+        // Create new icons
+        lucide.createIcons();
+        // Close modal if user clicks outside of the content
+        AUTH_MODAL.addEventListener('click', (e) => {
+            if (e.target === AUTH_MODAL) {
+                closeAuthModal();
+            }
+        });
+    });
+</script>
+
+{% endblock %}

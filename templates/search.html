@@ -1,0 +1,118 @@
+{% extends "layout.html" %}
+{% block title %}Browse Stylists{% endblock %}
+{% block content %}
+<div class="page-transition container mx-auto px-4 py-12">
+    <!-- 2. Dashboard Rework: Client's default view (replacing map on initial load) -->
+    <h1 class="text-4xl font-bold text-hot-pink mb-10 border-b border-hot-pink/50 pb-4">
+        Stylists Near You
+    </h1>
+    <p class="text-lg text-gray-400 mb-8">
+        Welcome! These are the top-rated stylists, with an emphasis on those closest to your city ({{ current_user.city if current_user and current_user.city else 'Worldwide' }}).
+    </p>
+
+    <!-- 2. Open Map Button -->
+    {% if current_user and current_user.type == 'client' %}
+    <a href="{{ url_for('stylist_map_view') }}" 
+       class="mb-8 block text-center cta-button bg-hot-pink text-white font-bold py-4 px-6 rounded-xl hover:bg-pink-700 transition transform hover:scale-[1.01] shadow-2xl"
+       aria-label="Switch to map view to find nearby stylists">
+        <svg data-lucide="map" class="w-6 h-6 mr-2 inline"></svg>
+        Open Map View (Find Stylists by Distance)
+    </a>
+    {% endif %}
+
+    <!-- Search/Filter Form -->
+    <div class="glass-card p-6 rounded-xl mb-10 shadow-lg">
+        <form method="GET" action="{{ url_for('search_stylists') }}" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+            
+            <!-- City Filter -->
+            <div>
+                <label for="city" class="block text-sm font-medium text-gray-300 mb-2">City</label>
+                <select id="city" name="city" class="w-full px-3 py-2 rounded-lg bg-gray-800 border border-hot-pink/50 text-white focus:ring-hot-pink" aria-label="Filter stylists by city">
+                    <option value="" {% if not selected_city %}selected{% endif %} class="bg-gray-800">All Cities</option>
+                    {% for city in cities %}
+                        <option value="{{ city }}" {% if selected_city == city %}selected{% endif %} class="bg-gray-800">{{ city }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Category Filter -->
+            <div>
+                <label for="category" class="block text-sm font-medium text-gray-300 mb-2">Category</label>
+                <select id="category" name="category" class="w-full px-3 py-2 rounded-lg bg-gray-800 border border-hot-pink/50 text-white focus:ring-hot-pink" aria-label="Filter stylists by category">
+                    <option value="all" {% if not selected_category or selected_category == 'all' %}selected{% endif %} class="bg-gray-800">All Categories</option>
+                    {% for cat in categories %}
+                        <option value="{{ cat }}" {% if selected_category == cat %}selected{% endif %} class="bg-gray-800">{{ cat }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Sort By -->
+            <div>
+                <label for="sort_by" class="block text-sm font-medium text-gray-300 mb-2">Sort By</label>
+                <select id="sort_by" name="sort_by" class="w-full px-3 py-2 rounded-lg bg-gray-800 border border-hot-pink/50 text-white focus:ring-hot-pink" aria-label="Sort stylist results">
+                    <option value="rating" {% if selected_sort == 'rating' %}selected{% endif %} class="bg-gray-800">Highest Rating</option>
+                    <option value="waiting" {% if selected_sort == 'waiting' %}selected{% endif %} class="bg-gray-800">Lowest Wait Time</option>
+                    <option value="mobile" {% if selected_sort == 'mobile' %}selected{% endif %} class="bg-gray-800">Mobile Stylists Only</option>
+                </select>
+            </div>
+
+            <!-- Submit Button -->
+            <button type="submit" class="cta-button bg-hot-pink text-white font-semibold py-2.5 rounded-lg hover:bg-pink-700 flex items-center justify-center" aria-label="Search stylists with current filters">
+                <svg data-lucide="search" class="w-5 h-5 mr-2"></svg> Search
+            </button>
+        </form>
+    </div>
+
+    <!-- Stylist Grid -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+        {% for stylist in stylists %}
+        <!-- Stylist Card -->
+        <a href="{{ url_for('view_profile', coiffeur_id=stylist.user.id) }}" class="group block glass-card rounded-xl p-6 text-white hover:border-pink-500 transform hover:scale-[1.03]" aria-label="View profile for {{ stylist.user.name }}">
+            <div class="flex flex-col items-center">
+                <!-- Profile Image -->
+                <div class="w-24 h-24 rounded-full overflow-hidden mb-4 border-4 border-hot-pink group-hover:border-white transition duration-300">
+                    <img src="{{ stylist.coiffeur.profile_image if stylist.coiffeur.profile_image else 'https://placehold.co/100x100/111/FF69B4?text=' + stylist.user.name[0] }}" 
+                         alt="{{ stylist.user.name }}" class="w-full h-full object-cover">
+                </div>
+                
+                <h2 class="text-xl font-bold text-white group-hover:text-hot-pink transition duration-300">{{ stylist.user.name }}</h2>
+                <p class="text-sm text-gray-400 mb-3">{{ stylist.user.city }} | {{ stylist.coiffeur.category }}</p>
+                
+                <!-- Ratings -->
+                <div class="flex items-center mb-4 text-hot-pink">
+                    {% for i in range(5) %}
+                        {% if i < stylist.rating|round(0, 'floor') %}
+                            <svg data-lucide="star" class="w-5 h-5 fill-current"></svg>
+                        {% else %}
+                            <svg data-lucide="star" class="w-5 h-5 text-gray-500"></svg>
+                        {% endif %}
+                    {% endfor %}
+                    <span class="text-gray-300 ml-2 text-sm">({{ stylist.rating|round(1) }})</span>
+                </div>
+
+                <!-- Wait Time Indicator -->
+                <div class="w-full bg-gray-800 rounded-full py-2 px-4 text-center">
+                    <span class="text-xs font-semibold uppercase 
+                        {% if stylist.coiffeur.people_waiting > 3 %}text-red-400{% elif stylist.coiffeur.people_waiting > 0 %}text-yellow-400{% else %}text-green-400{% endif %}">
+                        Waiting: {{ stylist.coiffeur.people_waiting }} {{ 'Person' if stylist.coiffeur.people_waiting == 1 else 'People' }}
+                    </span>
+                    <span class="block text-xs font-medium text-blue-400">
+                        Attending: {{ stylist.coiffeur.current_capacity }} {{ 'Person' if stylist.coiffeur.current_capacity == 1 else 'People' }}
+                    </span>
+                </div>
+
+                <!-- Reservation Button -->
+                {% if current_user and current_user.type == 'client' %}
+                <a href="{{ url_for('reserve_appointment', coiffeur_id=stylist.user.id) }}" class="w-full mt-4 bg-hot-pink text-white font-semibold py-2 rounded-full cta-button text-center" aria-label="Book an appointment with {{ stylist.user.name }}">
+                    Book Now
+                </a>
+                {% endif %}
+            </div>
+        </a>
+        {% else %}
+            <p class="col-span-full text-center text-gray-500 text-lg">No stylists found matching your criteria in this city.</p>
+        {% endfor %}
+    </div>
+
+</div>
+{% endblock %}

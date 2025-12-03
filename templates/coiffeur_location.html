@@ -1,0 +1,202 @@
+{% extends "layout.html" %}
+{% block title %}Manage Location{% endblock %}
+
+{% block head %}
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <style>
+        #map {
+            height: 40vh;
+            width: 100%;
+            border-radius: 0.75rem;
+            margin-bottom: 1.5rem;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+<div class="page-transition container mx-auto px-4 py-12">
+    <h1 class="text-4xl font-bold text-hot-pink mb-10 border-b border-hot-pink/50 pb-4">
+        Update Your Salon Location
+    </h1>
+
+    <div class="glass-card p-8 rounded-2xl mb-8 max-w-4xl mx-auto">
+        
+        <p class="text-gray-400 mb-6">
+            Your current coordinates are: 
+            <span id="current-lat" class="font-mono text-white">{{ coiffeur.latitude|default('N/A') }}</span>, 
+            <span id="current-lng" class="font-mono text-white">{{ coiffeur.longitude|default('N/A') }}</span>
+        </p>
+
+        <!-- Map Section -->
+        <div id="map"></div>
+
+        <!-- Location Form -->
+        <form id="location-form" class="space-y-4">
+            
+            <div class="flex space-x-4">
+                <div class="w-1/2">
+                    <label for="latitude" class="block text-sm font-medium text-gray-300 mb-1">Latitude</label>
+                    <input type="number" id="latitude" step="0.00000001" name="latitude" required 
+                           class="w-full p-3 rounded-lg bg-gray-800 border border-hot-pink/50 text-white focus:ring-hot-pink"
+                           value="{{ coiffeur.latitude|default('') }}">
+                </div>
+                <div class="w-1/2">
+                    <label for="longitude" class="block text-sm font-medium text-gray-300 mb-1">Longitude</label>
+                    <input type="number" id="longitude" step="0.00000001" name="longitude" required 
+                           class="w-full p-3 rounded-lg bg-gray-800 border border-hot-pink/50 text-white focus:ring-hot-pink"
+                           value="{{ coiffeur.longitude|default('') }}">
+                </div>
+            </div>
+
+            <div class="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4 pt-4">
+                <button type="button" id="detect-location-btn" class="flex-1 cta-button bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition">
+                    <svg data-lucide="locate-fixed" class="w-5 h-5 mr-2 inline"></svg> Auto-Detect Current Location
+                </button>
+                <button type="submit" id="save-location-btn" class="flex-1 cta-button bg-hot-pink text-white font-bold py-3 rounded-lg hover:bg-pink-700 transition">
+                    <svg data-lucide="save" class="w-5 h-5 mr-2 inline"></svg> Save Pinned Location
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="flash-message-container" class="fixed bottom-4 right-4 z-50"></div>
+
+<!-- Leaflet JavaScript Library -->
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const MAP_API_KEY = "{{ map_api_key }}"; // Used for any future Geocoding integration
+
+        const latInput = document.getElementById('latitude');
+        const lngInput = document.getElementById('longitude');
+        const detectBtn = document.getElementById('detect-location-btn');
+        const form = document.getElementById('location-form');
+        const flashContainer = document.getElementById('flash-message-container');
+
+        // Initial coordinates (use existing or fallback to Paris)
+        let currentLat = parseFloat(latInput.value) || 48.8566;
+        let currentLng = parseFloat(lngInput.value) || 2.3522;
+
+        let map = L.map('map').setView([currentLat, currentLng], 13);
+        
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        let marker = L.marker([currentLat, currentLng], {
+            draggable: true
+        }).addTo(map);
+
+        // --- Marker Drag Handler ---
+        marker.on('dragend', function(event) {
+            const position = marker.getLatLng();
+            latInput.value = position.lat.toFixed(8);
+            lngInput.value = position.lng.toFixed(8);
+            showFlashMessage('Location updated from drag. Click "Save Pinned Location" to confirm.', 'info');
+        });
+
+        // --- Form Submission (Save Location) ---
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const payload = {
+                latitude: parseFloat(latInput.value),
+                longitude: parseFloat(lngInput.value)
+            };
+
+            if (isNaN(payload.latitude) || isNaN(payload.longitude)) {
+                 showFlashMessage('Invalid coordinates. Please enter valid numbers.', 'error');
+                 return;
+            }
+
+            try {
+                const response = await fetch("{{ url_for('save_coiffeur_location') }}", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showFlashMessage('Location saved successfully!', 'success');
+                    // Update the display text
+                    document.getElementById('current-lat').textContent = payload.latitude.toFixed(8);
+                    document.getElementById('current-lng').textContent = payload.longitude.toFixed(8);
+                } else {
+                    showFlashMessage(`Error: ${result.error || 'Could not save location.'}`, 'error');
+                }
+            } catch (error) {
+                console.error('Save error:', error);
+                showFlashMessage('Network error or server unavailable.', 'error');
+            }
+        });
+
+        // --- Auto-Detect Location ---
+        detectBtn.addEventListener('click', function() {
+            detectBtn.disabled = true;
+            detectBtn.textContent = 'Detecting...';
+            
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const lat = position.coords.latitude;
+                        const lng = position.coords.longitude;
+                        
+                        // Update inputs
+                        latInput.value = lat.toFixed(8);
+                        lngInput.value = lng.toFixed(8);
+                        
+                        // Move marker and map view
+                        const newLatLng = L.latLng(lat, lng);
+                        marker.setLatLng(newLatLng);
+                        map.setView(newLatLng, 15);
+                        
+                        showFlashMessage('Location detected! Drag the pin if needed, then click "Save Pinned Location".', 'info');
+                        detectBtn.disabled = false;
+                        detectBtn.textContent = 'Auto-Detect Current Location';
+                    },
+                    (error) => {
+                        console.error("Geolocation error:", error);
+                        showFlashMessage('Could not detect location. Please pin it manually or try again.', 'error');
+                        detectBtn.disabled = false;
+                        detectBtn.textContent = 'Auto-Detect Current Location';
+                    },
+                    { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+                );
+            } else {
+                showFlashMessage('Geolocation is not supported by your browser.', 'error');
+                detectBtn.disabled = false;
+                detectBtn.textContent = 'Auto-Detect Current Location';
+            }
+        });
+
+        // --- Flash Message Utility ---
+        function showFlashMessage(message, type = 'info') {
+            // Remove previous messages
+            flashContainer.innerHTML = '';
+            
+            let colorClass = 'bg-blue-600';
+            if (type === 'success') colorClass = 'bg-green-600';
+            if (type === 'error') colorClass = 'bg-red-600';
+            if (type === 'info') colorClass = 'bg-yellow-600';
+
+            const div = document.createElement('div');
+            div.className = `p-4 rounded-lg shadow-xl text-white font-semibold transition-opacity duration-300 ${colorClass}`;
+            div.textContent = message;
+            
+            flashContainer.appendChild(div);
+
+            setTimeout(() => {
+                div.style.opacity = '0';
+                setTimeout(() => div.remove(), 300);
+            }, 5000);
+        }
+
+        // Initialize map with current location
+        map.setView([currentLat, currentLng], 13);
+    });
+</script>
+{% endblock %}

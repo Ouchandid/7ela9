@@ -1,0 +1,244 @@
+{% extends "layout.html" %}
+{% block title %}Client Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-transition container mx-auto px-4 py-12">
+    <h1 class="text-4xl font-bold text-hot-pink mb-4">Hello, {{ current_user.name }}!</h1>
+    <p class="text-lg text-gray-400 mb-8">Your personalized space to manage bookings and find great stylists.</p>
+
+    <!-- 2. Client Side: Price Proposals Received from ANY Déplacé Coiffeur -->
+    {% if proposals|length > 0 %}
+    <section class="glass-card p-6 rounded-xl mb-8 border border-yellow-500/50">
+        <h2 class="text-3xl font-bold text-yellow-400 mb-6 border-b border-yellow-500/30 pb-3 flex items-center">
+            <svg data-lucide="receipt" class="w-6 h-6 mr-3"></svg>
+            Pending Price Proposals ({{ proposals|length }})
+        </h2>
+        <div id="proposals-container" class="space-y-4">
+            {% for proposal in proposals %}
+                {% set coiffeur = proposal.coiffeur.user %}
+                <div id="proposal-card-{{ proposal.id }}" class="glass-card p-4 rounded-lg border-l-4 border-hot-pink">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-sm text-gray-400">From: <a href="{{ url_for('view_profile', coiffeur_id=coiffeur.id) }}" class="font-semibold text-white hover:text-hot-pink">{{ coiffeur.name }}</a></p>
+                            <p class="text-2xl font-bold text-hot-pink mt-1">{{ "%.2f"|format(proposal.proposed_price) }}€</p>
+                            <p class="text-sm text-gray-400">For Request: <span class="text-white">{{ proposal.request.service_requested }}</span></p>
+                            <p class="text-xs text-gray-500 mt-1">Notes: {{ proposal.notes or 'None' }}</p>
+                        </div>
+                        <div class="flex space-x-3 mt-1">
+                            <button onclick="respondToProposal({{ proposal.id }}, 'accept')" class="bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition text-sm flex items-center">
+                                <svg data-lucide="check" class="w-4 h-4 mr-1"></svg> Accept
+                            </button>
+                            <button onclick="respondToProposal({{ proposal.id }}, 'refuse')" class="bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 transition text-sm flex items-center">
+                                <svg data-lucide="x" class="w-4 h-4 mr-1"></svg> Refuse
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    <!-- Nearby Suggestions & Main Actions -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        <!-- Column 1: Main Actions -->
+        <div class="lg:col-span-2 space-y-8">
+
+            <section class="glass-card p-6 rounded-xl">
+                <h2 class="text-3xl font-bold text-hot-pink mb-6 border-b border-hot-pink/30 pb-3 flex items-center">
+                    <svg data-lucide="scissors" class="w-6 h-6 mr-3"></svg>
+                    Start Your Search
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Standard Search -->
+                    <a href="{{ url_for('search_stylists') }}" 
+                       class="cta-button bg-blue-600 text-white font-bold py-4 px-6 rounded-xl hover:bg-blue-700 transition transform hover:scale-[1.01] shadow-xl text-center flex items-center justify-center">
+                        <svg data-lucide="search" class="w-5 h-5 mr-2"></svg>
+                        Browse All Stylists
+                    </a>
+                    <!-- Déplacement Request (Step 2 Client) -->
+                    <a href="{{ url_for('new_deplacement_request_page') }}" 
+                       class="cta-button bg-hot-pink text-white font-bold py-4 px-6 rounded-xl hover:bg-pink-700 transition transform hover:scale-[1.01] shadow-xl text-center flex items-center justify-center">
+                        <svg data-lucide="car" class="w-5 h-5 mr-2"></svg>
+                        Request Mobile Stylist
+                    </a>
+                </div>
+            </section>
+
+            <!-- Map Button (FIXED URL) -->
+            <section>
+                <a href="{{ url_for('stylist_map_view') }}" 
+                   class="mb-8 block text-center cta-button bg-gray-700 text-white font-bold py-4 px-6 rounded-xl hover:bg-gray-600 transition transform hover:scale-[1.01] shadow-xl"
+                   aria-label="Switch to map view to find nearby stylists">
+                    <svg data-lucide="map" class="w-6 h-6 mr-2 inline"></svg>
+                    Open Map View
+                </a>
+            </section>
+        </div>
+
+        <!-- Column 2: Suggested Nearby Coiffeurs (Step 1) -->
+        <div class="lg:col-span-1 space-y-8">
+            <section class="glass-card p-6 rounded-xl">
+                <h2 class="text-3xl font-bold text-green-400 mb-6 border-b border-green-500/30 pb-3 flex items-center">
+                    <svg data-lucide="navigation" class="w-6 h-6 mr-3"></svg>
+                    Nearby Suggestions
+                </h2>
+                <p class="text-gray-500 text-sm mb-4">Based on your approximate location.</p>
+                <div id="nearby-stylists-list" class="space-y-4">
+                    <p id="loading-nearby" class="text-gray-500 text-center">
+                        <svg class="animate-spin h-5 w-5 mr-3 inline text-hot-pink" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                        Finding local stylists...
+                    </p>
+                    <!-- Stylist cards will be injected here by JS -->
+                </div>
+            </section>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- Global Variables (Mocking Client Location for Demo) ---
+    // In a real app, this would come from navigator.geolocation
+    const MOCK_CLIENT_LAT = 48.8606; // Paris
+    const MOCK_CLIENT_LON = 2.3376; 
+    const USER_ID = {{ (current_user.id if current_user and current_user.id is not none else 0) | tojson }};
+
+    // --- Toast Notification Utility (Copied from profile.html) ---
+    function showToast(message, type = 'success', duration = 5000) {
+        const container = document.getElementById('flash-message-container') || document.body.appendChild(document.createElement('div'));
+        if (!container.id) container.id = 'flash-message-container';
+        container.className = 'fixed top-4 right-4 z-50 space-y-2';
+
+        const color = type === 'success' ? 'bg-green-600' : (type === 'error' ? 'bg-red-600' : (type === 'info' ? 'bg-blue-600' : 'bg-hot-pink'));
+        const ariaRole = type === 'success' ? 'status' : 'alert';
+        
+        const toast = document.createElement('div');
+        toast.className = `p-4 rounded-lg shadow-xl text-white font-semibold transition-transform duration-300 translate-x-full ${color} max-w-sm`;
+        toast.setAttribute('role', ariaRole);
+        toast.textContent = message;
+        
+        container.appendChild(toast);
+        
+        setTimeout(() => toast.style.transform = 'translateX(0)', 10);
+
+        setTimeout(() => {
+            toast.style.transform = 'translateX(100%)';
+            setTimeout(() => toast.remove(), 300);
+        }, duration);
+    }
+    
+    // --- Nearby Coiffeur Logic (Step 1) ---
+    async function fetchNearbyCoiffeurs() {
+        const loadingElement = document.getElementById('loading-nearby');
+        const listElement = document.getElementById('nearby-stylists-list');
+        listElement.innerHTML = '';
+        listElement.appendChild(loadingElement);
+        loadingElement.classList.remove('hidden');
+
+        try {
+            const url = `/api/coiffeurs/nearby?lat=${MOCK_CLIENT_LAT}&lon=${MOCK_CLIENT_LON}`;
+            const response = await fetch(url);
+            const stylists = await response.json();
+
+            loadingElement.classList.add('hidden');
+            listElement.innerHTML = '';
+
+            if (stylists.length === 0) {
+                listElement.innerHTML = '<p class="text-gray-500 text-sm text-center p-4">No nearby stylists found.</p>';
+                return;
+            }
+
+            stylists.forEach(stylist => {
+                const card = document.createElement('a');
+                card.href = `{{ url_for('view_profile', coiffeur_id=0) }}`.replace('0', stylist.id);
+                card.className = 'flex items-center space-x-3 p-3 bg-gray-800 rounded-lg hover:bg-gray-700 transition group';
+                
+                const ratingHtml = '<span>' + 
+                    '<svg data-lucide="star" class="w-4 h-4 fill-current text-yellow-400 inline"></svg>' + 
+                    ` ${stylist.rating.toFixed(1)}` + 
+                    '</span>';
+
+                card.innerHTML = `
+                    <div class="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 border-2 border-hot-pink">
+                        <img src="${stylist.profile_image}" alt="${stylist.name}" class="w-full h-full object-cover">
+                    </div>
+                    <div class="flex-grow">
+                        <p class="text-white font-semibold group-hover:text-hot-pink">${stylist.name}</p>
+                        <p class="text-xs text-gray-400">${stylist.category}</p>
+                    </div>
+                    <div class="text-right flex-shrink-0">
+                        <p class="text-sm font-bold text-green-400">${stylist.distance_km} km</p>
+                        <div class="text-xs text-gray-300 flex items-center">
+                            ${ratingHtml}
+                        </div>
+                    </div>
+                `;
+                listElement.appendChild(card);
+            });
+            lucide.createIcons();
+
+        } catch (error) {
+            console.error('Error fetching nearby stylists:', error);
+            loadingElement.classList.add('hidden');
+            listElement.innerHTML = '<p class="text-red-400 text-sm text-center p-4">Error loading suggestions. Try again later.</p>';
+        }
+    }
+    
+    // --- Déplacement Proposal Response Logic (Step 2 Client) ---
+    async function respondToProposal(proposalId, action) {
+        if (!USER_ID) return;
+
+        const card = document.getElementById(`proposal-card-${proposalId}`);
+        const buttons = card.querySelectorAll('button');
+        buttons.forEach(btn => btn.disabled = true);
+        
+        showToast(`Processing ${action}...`, 'info', 5000);
+
+        try {
+            const response = await fetch(`/api/deplacement/respond/${proposalId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: action })
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                if (action === 'accept') {
+                    showToast(`Accepted! Contact ${result.coiffeur_phone}.`, 'success', 8000);
+                    // Show contact details and WhatsApp link on the card
+                    card.innerHTML = `
+                        <div class="p-4 bg-green-900/50 rounded-lg">
+                            <p class="text-xl font-bold text-green-400 mb-2">Proposal Accepted!</p>
+                            <p class="text-gray-300">You can now contact your coiffeur directly:</p>
+                            <p class="text-white font-mono mt-1">Phone: ${result.coiffeur_phone}</p>
+                            <a href="${result.whatsapp_link}" target="_blank" class="text-hot-pink hover:underline flex items-center mt-2">
+                                <svg data-lucide="message-circle" class="w-4 h-4 mr-1"></svg> Start WhatsApp Chat
+                            </a>
+                        </div>
+                    `;
+                    lucide.createIcons();
+                } else {
+                    showToast(result.message, 'success');
+                    card.remove(); // Remove refused card immediately
+                }
+                // Reload list to update count/state if necessary
+                setTimeout(() => window.location.reload(), 2000); 
+            } else {
+                showToast(`Response failed: ${result.error || 'Server error'}`, 'error');
+                buttons.forEach(btn => btn.disabled = false);
+            }
+        } catch (error) {
+            showToast('Network error during proposal response.', 'error');
+            buttons.forEach(btn => btn.disabled = false);
+        }
+    }
+
+
+    document.addEventListener('DOMContentLoaded', () => {
+        lucide.createIcons();
+        fetchNearbyCoiffeurs();
+    });
+</script>
+{% endblock %}

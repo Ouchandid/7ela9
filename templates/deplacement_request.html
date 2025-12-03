@@ -1,0 +1,140 @@
+{% extends "layout.html" %}
+{% block title %}Request Mobile Stylist{% endblock %}
+
+{% block content %}
+<div class="page-transition container mx-auto px-4 py-12">
+    <h1 class="text-4xl font-bold text-hot-pink mb-4">Request a Mobile Stylist</h1>
+    <p class="text-lg text-gray-400 mb-8">
+        Describe the service you need and send a broadcast request to all available "Déplacé" coiffeurs. They will respond with their price proposals!
+    </p>
+
+    <div class="glass-card p-8 rounded-xl max-w-2xl mx-auto">
+        <h2 class="text-2xl font-semibold text-white mb-6 border-b border-gray-700 pb-3">Service Details</h2>
+        
+        <form id="broadcast-deplacement-form" onsubmit="createBroadcastRequest(event)" class="space-y-6">
+            
+            <!-- Service Field -->
+            <div>
+                <label for="service" class="block text-sm font-medium text-gray-300 mb-2">Service Requested</label>
+                <input type="text" id="service" name="service" placeholder="e.g., Bridal Updo, Home Haircut for 2" required
+                       class="w-full p-3 rounded-lg bg-gray-800 border border-hot-pink/50 text-white focus:ring-hot-pink" aria-label="Service requested">
+            </div>
+
+            <!-- Location Field -->
+            <div>
+                <label for="location" class="block text-sm font-medium text-gray-300 mb-2">Your Address / Location</label>
+                <input type="text" id="location" name="location" placeholder="Full address for the appointment" required
+                       class="w-full p-3 rounded-lg bg-gray-800 border border-hot-pink/50 text-white focus:ring-hot-pink" aria-label="Client location">
+            </div>
+
+            <!-- Date and Time -->
+            <div class="flex space-x-4">
+                <div class="w-1/2">
+                    <label for="date" class="block text-sm font-medium text-gray-300 mb-2">Preferred Date</label>
+                    <input type="date" id="date" name="date" required
+                           class="w-full p-3 rounded-lg bg-gray-800 border border-hot-pink/50 text-gray-300 focus:ring-hot-pink" aria-label="Preferred date">
+                </div>
+                <div class="w-1/2">
+                    <label for="time" class="block text-sm font-medium text-gray-300 mb-2">Preferred Time</label>
+                    <input type="time" id="time" name="time" required
+                           class="w-full p-3 rounded-lg bg-gray-800 border border-hot-pink/50 text-gray-300 focus:ring-hot-pink" aria-label="Preferred time">
+                </div>
+            </div>
+
+            <!-- Details -->
+            <div>
+                <label for="details" class="block text-sm font-medium text-gray-300 mb-2">Additional Details (Optional)</label>
+                <textarea id="details" name="details" rows="3" placeholder="Number of people, parking info, specific products needed, etc."
+                          class="w-full p-3 rounded-lg bg-gray-800 border border-hot-pink/50 text-white focus:ring-hot-pink" aria-label="Additional details"></textarea>
+            </div>
+            
+            <!-- Submission -->
+            <button type="submit" class="cta-button w-full bg-hot-pink text-white font-bold py-3 rounded-lg hover:bg-pink-700 transition flex items-center justify-center">
+                <svg data-lucide="send" class="w-5 h-5 mr-2"></svg>
+                Broadcast Request for Proposals
+            </button>
+        </form>
+
+        <p class="text-xs text-gray-500 mt-6 pt-4 border-t border-gray-800 text-center">
+            Your request will be visible to mobile coiffeurs like 
+            {% for name in coiffeur_names %}
+                {{ name }}{% if not loop.last %}, {% endif %}
+            {% else %}
+                (no "Déplacé" coiffeurs found in the system).
+            {% endfor %}
+            A response is not guaranteed, but they should contact you soon with a price.
+        </p>
+
+    </div>
+
+</div>
+
+<script>
+    // --- Toast Notification Utility (Copied from profile.html) ---
+    function showToast(message, type = 'success', duration = 5000) {
+        const container = document.getElementById('flash-message-container') || document.body.appendChild(document.createElement('div'));
+        if (!container.id) container.id = 'flash-message-container';
+        container.className = 'fixed top-4 right-4 z-50 space-y-2';
+
+        const color = type === 'success' ? 'bg-green-600' : (type === 'error' ? 'bg-red-600' : (type === 'info' ? 'bg-blue-600' : 'bg-hot-pink'));
+        const ariaRole = type === 'success' ? 'status' : 'alert';
+        
+        const toast = document.createElement('div');
+        toast.className = `p-4 rounded-lg shadow-xl text-white font-semibold transition-transform duration-300 translate-x-full ${color} max-w-sm`;
+        toast.setAttribute('role', ariaRole);
+        toast.textContent = message;
+        
+        container.appendChild(toast);
+        
+        setTimeout(() => toast.style.transform = 'translateX(0)', 10);
+
+        setTimeout(() => {
+            toast.style.transform = 'translateX(100%)';
+            setTimeout(() => toast.remove(), 300);
+        }, duration);
+    }
+    
+    // --- Déplacement Request Submission Logic (Step 2 Client) ---
+    async function createBroadcastRequest(e) {
+        e.preventDefault();
+        const form = e.target;
+        const data = Object.fromEntries(new FormData(form).entries());
+        const submitBtn = form.querySelector('button[type="submit"]');
+
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<svg class="animate-spin h-5 w-5 mr-3 inline" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Sending...';
+        showToast('Sending displacement request to mobile stylists...', 'info', 10000);
+
+        try {
+            const response = await fetch(`/api/deplacement/request/broadcast`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                showToast(result.message + ' Check your dashboard for proposals!', 'success', 8000);
+                form.reset();
+                setTimeout(() => window.location.href = '{{ url_for('dashboard') }}', 1000);
+            } else {
+                showToast(`Request failed: ${result.error || 'Server error'}`, 'error');
+            }
+        } catch (error) {
+            showToast('Network error during request submission.', 'error');
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<svg data-lucide="send" class="w-5 h-5 mr-2"></svg> Broadcast Request for Proposals';
+            lucide.createIcons();
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        lucide.createIcons();
+        // Set min date to today
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('date').setAttribute('min', today);
+    });
+</script>
+{% endblock %}

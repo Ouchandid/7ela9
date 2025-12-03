@@ -1,0 +1,1198 @@
+{% extends "layout.html" %}
+{% block title %}{{ user.name }}'s Profile{% endblock %}
+
+{% block content %}
+<div class="page-transition container mx-auto px-4 py-12">
+
+    <!-- Flash Message Container -->
+    <div id="flash-message-container" class="fixed top-4 right-4 z-50 space-y-2"></div>
+
+    <!-- Profile Header -->
+    <div class="glass-card p-8 rounded-2xl mb-8 flex flex-col md:flex-row items-center md:items-start space-y-6 md:space-y-0 md:space-x-8">
+        
+        <!-- Profile Image Upload Section -->
+        <div class="flex-shrink-0 w-32 h-32 md:w-48 md:h-48 rounded-full overflow-hidden border-4 border-hot-pink shadow-pink-glow relative group">
+            <img id="profile-img" 
+                 src="{{ coiffeur.profile_image if coiffeur.profile_image else 'https://placehold.co/200x200/111/FF69B4?text=' + user.name[0] }}" 
+                 alt="{{ user.name }}'s profile picture" class="w-full h-full object-cover">
+            
+            {% if is_owner %}
+            <button type="button" id="upload-avatar-btn" class="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition duration-300 text-white text-sm font-semibold rounded-full" aria-label="Upload new profile picture">
+                <svg data-lucide="camera" class="w-6 h-6 mr-1"></svg> Upload
+            </button>
+            <input type="file" id="avatar-input" accept="image/png, image/jpeg, image/jpg" class="hidden">
+            {% endif %}
+        </div>
+
+        <!-- Profile Info -->
+        <div class="flex-grow text-center md:text-left">
+            <h1 class="text-4xl font-extrabold text-white mb-1">{{ user.name }}</h1>
+            <p class="text-xl text-hot-pink font-semibold mb-2">
+                Coiffeure {{ coiffeur.category }} | {{ user.city }}
+            </p>
+            <p id="bio-text" class="text-gray-400 mb-4">{{ coiffeur.description }}</p>
+
+            <div class="flex items-center justify-center md:justify-start space-x-4 mb-4">
+                <!-- Rating -->
+                <div class="flex items-center text-hot-pink">
+                    {% set avg_rating = coiffeur.rating %}
+                    {% for i in range(5) %}
+                        {% if i < avg_rating|round(0, 'floor') %}
+                            <svg data-lucide="star" class="w-5 h-5 fill-current"></svg>
+                        {% else %}
+                            <svg data-lucide="star" class="w-5 h-5 text-gray-500"></svg>
+                        {% endif %}
+                    {% endfor %}
+                    <span class="text-gray-300 ml-2 font-semibold">{{ avg_rating|round(1) }}</span>
+                </div>
+                <!-- Location -->
+                <div class="flex items-center text-gray-400">
+                    <svg data-lucide="map-pin" class="w-5 h-5 mr-1"></svg>
+                    <span>{{ coiffeur.address }}</span>
+                </div>
+            </div>
+
+            <!-- Action Buttons (Client View) -->
+            {% if current_user and current_user.type == 'client' and not is_owner %}
+            <div class="mt-4 flex flex-wrap justify-center md:justify-start space-x-3 space-y-3 md:space-y-0">
+                <!-- Book Reservation -->
+                <a href="{{ url_for('reserve_appointment', coiffeur_id=user.id) }}" 
+                    class="cta-button bg-hot-pink text-white font-bold py-2.5 px-6 rounded-full hover:bg-pink-700 transition flex items-center justify-center min-w-[150px]">
+                    <svg data-lucide="calendar-plus" class="w-5 h-5 mr-2"></svg> Book Reservation
+                </a>
+                
+                <!-- Get Direction Button -->
+                {% if coiffeur.latitude and coiffeur.longitude %}
+                <a href="https://www.google.com/maps/dir/?api=1&destination={{ coiffeur.latitude }},{{ coiffeur.longitude }}" 
+                   target="_blank"
+                   class="cta-button bg-gray-700 text-white font-bold py-2.5 px-6 rounded-full hover:bg-gray-600 transition flex items-center justify-center min-w-[150px]"
+                   aria-label="Get directions to coiffeur's location">
+                    <svg data-lucide="map-pin" class="w-5 h-5 mr-2"></svg> Get Directions
+                </a>
+                {% endif %}
+                
+                <!-- Subscribe/Follow Button -->
+                <button id="subscribe-btn" onclick="toggleSubscription({{ user.id }})"
+                        data-subscribed="{{ is_subscribed | lower }}"
+                        class="cta-button py-2.5 px-6 rounded-full transition duration-300 flex items-center justify-center min-w-[150px] 
+                               {% if is_subscribed %}bg-green-600 text-white hover:bg-green-700{% else %}bg-gray-800 border border-hot-pink text-hot-pink hover:bg-hot-pink hover:text-white{% endif %}">
+                    <svg data-lucide="bell" class="w-5 h-5 mr-2"></svg>
+                    <span id="subscribe-text">{{ 'Following' if is_subscribed else 'Subscribe' }}</span>
+                </button>
+
+            </div>
+            {% endif %}
+
+            <!-- Wait Time & Capacity Display (All Views) -->
+            <div class="mt-4 flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 sm:space-x-4">
+                <div class="bg-gray-800 rounded-full py-2 px-6 text-center border border-hot-pink/50">
+                    <span id="capacity-display" class="text-sm font-semibold uppercase text-blue-400">
+                        Attending: {{ coiffeur.current_capacity }} {{ 'Person' if coiffeur.current_capacity == 1 else 'People' }}
+                    </span>
+                </div>
+                <div class="bg-gray-800 rounded-full py-2 px-6 text-center border border-hot-pink/50">
+                    <span id="waiting-display" class="text-sm font-semibold uppercase 
+                        {% if coiffeur.people_waiting > 3 %}text-red-400{% elif coiffeur.people_waiting > 0 %}text-yellow-400{% else %}text-green-400{% endif %}">
+                        Waiting: {{ coiffeur.people_waiting }} {{ 'Person' if coiffeur.people_waiting == 1 else 'People' }}
+                    </span>
+                </div>
+            </div>
+
+            <!-- Stylist Management Controls (Owner Only) -->
+            {% if is_owner %}
+            <div class="mt-4 flex items-center space-x-4">
+                <!-- Capacity Update Form (Owner Only) -->
+                <form id="capacity-form" class="flex items-center space-x-3 bg-gray-800 p-3 rounded-lg border border-gray-700">
+                    <label for="current_capacity" class="text-gray-400 whitespace-nowrap text-sm">Attending:</label>
+                    <input type="number" id="current_capacity" name="current_capacity" value="{{ coiffeur.current_capacity }}" min="0" required
+                           class="w-16 px-2 py-1 rounded-lg bg-gray-900 border border-gray-700 text-white focus:ring-hot-pink text-center text-sm"
+                           aria-label="Current number of people being attended">
+                    
+                    <label for="waiting_count" class="text-gray-400 whitespace-nowrap text-sm">Waiting:</label>
+                    <input type="number" id="waiting_count" name="waiting_count" value="{{ coiffeur.people_waiting }}" min="0" required
+                           class="w-16 px-2 py-1 rounded-lg bg-gray-900 border border-gray-700 text-white focus:ring-hot-pink text-center text-sm"
+                           aria-label="Current number of people waiting in the queue">
+
+                    <button type="submit" id="save-capacity-btn" class="bg-hot-pink text-white font-bold py-1.5 px-4 rounded-lg hover:bg-pink-700 transition text-sm" aria-label="Save capacity and waiting queue numbers">
+                        Save Status
+                    </button>
+                </form>
+                
+                <!-- Location Update (Owner Only) -->
+                <a href="{{ url_for('manage_coiffeur_location') }}"
+                    class="bg-hot-pink/20 text-hot-pink border border-hot-pink py-2 px-4 rounded-lg hover:bg-hot-pink/30 transition flex items-center"
+                    aria-label="Update Salon Map Location">
+                    <svg data-lucide="map-pin" class="w-4 h-4 mr-1"></svg>
+                    Update Location
+                </a>
+            </div>
+            {% endif %}
+
+        </div>
+    </div>
+
+    <!-- Main Content Tabs -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        <!-- Column 1 & 2: Services, Gallery, Publications -->
+        <div class="lg:col-span-2 space-y-8">
+
+            {% if is_owner and coiffeur.category == 'Déplacé' %}
+            <!-- ========================================================================= -->
+            <!-- 2. Coiffeur Side (Déplace Only): Déplacement Requests Received (Broadcast) -->
+            <!-- ========================================================================= -->
+            <section class="glass-card p-6 rounded-xl">
+                <h2 class="text-3xl font-bold text-hot-pink mb-6 border-b border-hot-pink/30 pb-3 flex items-center">
+                    <svg data-lucide="mail-search" class="w-6 h-6 mr-3"></svg>
+                    New Déplacement Requests
+                </h2>
+                <div id="deplacement-requests-container" class="space-y-4">
+                    {% if deplacement_requests|length > 0 %}
+                        {% for req in deplacement_requests %}
+                            <div class="glass-card p-4 rounded-lg border-l-4 border-yellow-500">
+                                <div class="flex justify-between items-start">
+                                    <div>
+                                        <p class="text-lg font-semibold text-white">{{ req.service_requested }}</p>
+                                        <p class="text-sm text-gray-400">Client: {{ req.client.name }}</p>
+                                        <p class="text-sm text-hot-pink">Location: {{ req.client_location }}</p>
+                                        <p class="text-sm text-gray-300">Prefers: {{ req.preferred_date.strftime('%Y-%m-%d') }} at {{ req.preferred_time.strftime('%H:%M') }}</p>
+                                    </div>
+                                    <span class="px-3 py-1 text-xs font-semibold rounded-full bg-blue-500/20 text-blue-400 uppercase">{{ req.status }}</span>
+                                </div>
+                                <p class="text-sm italic text-gray-500 mt-2 border-t border-gray-700 pt-2">{{ req.details or 'No extra details provided.' }}</p>
+                                
+                                <!-- Proposal Form -->
+                                <form id="proposal-form-{{ req.id }}" onsubmit="submitPriceProposal(event, {{ req.id }})" class="mt-4 flex space-x-3">
+                                    <input type="number" name="proposed_price" placeholder="Suggest Price (€)" step="0.01" min="10" required
+                                           class="w-32 p-2 rounded-lg bg-gray-800 border border-gray-700 text-white text-sm" aria-label="Proposed price in Euros">
+                                    <input type="text" name="notes" placeholder="Notes (e.g., travel fee included)" 
+                                           class="flex-grow p-2 rounded-lg bg-gray-800 border border-gray-700 text-white text-sm" aria-label="Notes on the proposal">
+                                    <button type="submit" class="bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition text-sm">
+                                        Propose Price
+                                    </button>
+                                </form>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-gray-500 text-center">No new broadcast Déplacement requests pending.</p>
+                    {% endif %}
+                </div>
+            </section>
+            <!-- ========================================================================= -->
+            {% endif %}
+
+            <!-- Reservations List (Owner Only - Unchanged) -->
+            {% if is_owner %}
+            <section class="glass-card p-6 rounded-xl">
+                <h2 class="text-3xl font-bold text-hot-pink mb-6 border-b border-hot-pink/30 pb-3 flex items-center justify-between">
+                    Upcoming Reservations
+                    <span id="reservation-count" class="text-lg font-normal text-gray-400"></span>
+                </h2>
+                <div id="reservations-container" class="space-y-4">
+                    <p id="reservations-loading" class="text-gray-500 text-center">
+                        <svg class="animate-spin h-5 w-5 mr-3 inline text-hot-pink" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                        Loading reservations...
+                    </p>
+                    <div id="reservations-table-wrapper" class="hidden overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-700 rounded-lg overflow-hidden">
+                            <thead class="bg-gray-800">
+                                <tr class="text-left text-xs font-semibold uppercase tracking-wider text-gray-400">
+                                    <th class="px-4 py-3">Date / Time</th>
+                                    <th class="px-4 py-3">Client</th>
+                                    <th class="px-4 py-3 hidden sm:table-cell">Phone</th>
+                                    <th class="px-4 py-3 hidden md:table-cell">Service</th>
+                                    <th class="px-4 py-3 hidden lg:table-cell">Notes</th>
+                                    <th class="px-4 py-3 text-center">Status</th>
+                                    <th class="px-4 py-3 text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="reservations-table-body" class="divide-y divide-gray-800 text-sm text-gray-300 bg-gray-900">
+                                <!-- Reservation rows will go here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+            {% endif %}
+            
+            <!-- 3. Coiffeur Space — Add/Edit Menu Section (Owner Only) -->
+            {% if is_owner %}
+            <section class="glass-card p-6 rounded-xl">
+                <h2 class="text-3xl font-bold text-hot-pink mb-6 border-b border-hot-pink/30 pb-3 flex items-center">
+                    <svg data-lucide="menu" class="w-6 h-6 mr-3"></svg>
+                    Manage Service Menu
+                </h2>
+                
+                <!-- Add New Item Form -->
+                <form id="add-menu-form" class="mb-6 space-y-4 p-4 bg-gray-800/50 rounded-lg">
+                    <h3 class="text-xl font-semibold text-white">Add New Menu Item</h3>
+                    <input type="text" name="name" placeholder="Haircut/Service Name" required
+                           class="w-full p-2 rounded-lg bg-gray-900 border border-gray-700 text-white text-sm" aria-label="Service Name">
+                    <div class="flex space-x-3">
+                        <input type="number" name="price" placeholder="Price (€)" step="0.01" min="0" required
+                               class="w-1/3 p-2 rounded-lg bg-gray-900 border border-gray-700 text-white text-sm" aria-label="Price in Euros">
+                        <input type="text" name="description" placeholder="Optional Description"
+                               class="flex-grow p-2 rounded-lg bg-gray-900 border border-gray-700 text-white text-sm" aria-label="Optional description">
+                    </div>
+                    <button type="submit" id="add-menu-btn" class="cta-button bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 transition text-sm">
+                        Add Item
+                    </button>
+                </form>
+
+                <!-- Menu List -->
+                <div id="menu-list" class="space-y-4 mt-4">
+                    {% for item in menu_items %}
+                        <div id="menu-item-{{ item.id }}" class="menu-item flex justify-between items-center py-3 px-4 bg-gray-800/30 rounded-lg border-l-4 border-hot-pink/50">
+                            <div class="flex-grow">
+                                <p class="text-lg font-medium text-white">{{ item.name }} - {{ "%.2f"|format(item.price) }}€</p>
+                                {% if item.description %}
+                                    <p class="text-sm text-gray-400 italic">{{ item.description }}</p>
+                                {% endif %}
+                            </div>
+                            <div class="flex space-x-2 flex-shrink-0">
+                                <button onclick="editMenuItem({{ item.id }})" class="text-blue-400 hover:text-blue-300 transition p-1" title="Edit Item">
+                                    <svg data-lucide="edit" class="w-5 h-5"></svg>
+                                </button>
+                                <button onclick="deleteMenuItem({{ item.id }})" class="text-red-400 hover:text-red-300 transition p-1" title="Delete Item">
+                                    <svg data-lucide="trash-2" class="w-5 h-5"></svg>
+                                </button>
+                            </div>
+                        </div>
+                    {% endfor %}
+                    {% if not menu_items %}
+                        <p class="text-gray-500 text-center">Your menu is empty. Add your first service above!</p>
+                    {% endif %}
+                </div>
+            </section>
+            {% endif %}
+            
+            <!-- Publications (Feed - Unchanged logic) -->
+            <section class="space-y-8">
+                <h2 class="text-4xl font-bold text-hot-pink mb-6 border-b border-hot-pink/50 pb-3">Publications</h2>
+                
+                {% if is_owner %}
+                <!-- Publication Creation Form -->
+                <!-- ... [Existing Publication Creation Form] ... -->
+                <div class="glass-card p-6 rounded-xl">
+                    <h3 class="text-2xl font-semibold text-white mb-4">Create New Post</h3>
+                    <form id="create-publication-form" class="space-y-4">
+                        <textarea id="pub-text" name="text" rows="3" placeholder="Share your latest work or news (max 1000 chars)" maxlength="1000"
+                                  class="w-full p-3 rounded-lg bg-gray-800 border border-hot-pink/50 text-white focus:ring-hot-pink" aria-label="Publication text"></textarea>
+                        
+                        <!-- Image Preview Container -->
+                        <div id="image-preview-container" class="grid grid-cols-4 gap-2 mb-2">
+                            <!-- Image previews go here -->
+                        </div>
+                        
+                        <input type="file" id="pub-image-input" name="pub_images" accept="image/png, image/jpeg, image/jpg" multiple max="4" class="hidden">
+                        
+                        <div class="flex justify-between items-center">
+                            <button type="button" id="add-image-btn" class="flex items-center text-hot-pink hover:text-pink-400 font-medium transition" aria-label="Add image to publication">
+                                <svg data-lucide="image" class="w-5 h-5 mr-2"></svg> Add Photo (Max 4)
+                            </button>
+                            <button type="submit" id="publish-btn" class="bg-hot-pink text-white font-bold py-2 px-6 rounded-lg hover:bg-pink-700 transition" aria-label="Publish post">
+                                Publish
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                {% endif %}
+                
+                <!-- Publications Feed List -->
+                <div id="publications-feed" class="space-y-8">
+                    {% for pub in publications %}
+                    <div id="pub-card-{{ pub.id }}" class="publication-card glass-card p-6 rounded-xl space-y-4" data-pub-id="{{ pub.id }}">
+                        
+                        <!-- Header -->
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-10 h-10 rounded-full overflow-hidden border border-gray-700">
+                                    <img src="{{ coiffeur.profile_image if coiffeur.profile_image else 'https://placehold.co/40x40/111/FF69B4?text=' + user.name[0] }}" alt="{{ user.name }}" class="w-full h-full object-cover">
+                                </div>
+                                <div>
+                                    <p class="text-white font-semibold">{{ user.name }}</p>
+                                    <p class="text-xs text-gray-500">{{ pub.created_at.strftime('%B %d, %Y') }}</p>
+                                </div>
+                            </div>
+                            {% if is_owner %}
+                            <div class="text-gray-400 hover:text-red-500 transition cursor-pointer" onclick="deletePublication({{ pub.id | default(0) }})" aria-label="Delete publication">
+                                <svg data-lucide="trash-2" class="w-5 h-5"></svg>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Content -->
+                        <p class="text-gray-300 whitespace-pre-wrap">{{ pub.text }}</p>
+                        
+                        <!-- Display posts with images using the array of paths -->
+                        {% if pub.images|length > 0 %}
+                        <div class="grid gap-2 {% if pub.images|length == 1 %}grid-cols-1{% elif pub.images|length == 2 %}grid-cols-2{% else %}grid-cols-2 md:grid-cols-4{% endif %}">
+                            {% for image_url in pub.images %}
+                            <img src="{{ image_url }}" alt="Work image {{ loop.index }}" class="w-full h-auto max-h-64 object-cover rounded-lg shadow-md">
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+
+                        <!-- Footer: Likes & Comments -->
+                        <div class="flex items-center justify-between border-t border-gray-700 pt-3">
+                            <div class="flex items-center space-x-4">
+                                <!-- Like Button -->
+                                <button class="flex items-center space-x-1 transition disabled:opacity-50" 
+                                        onclick="toggleLike({{ pub.id | default(0) }})" 
+                                        {% if not current_user %}disabled{% endif %}
+                                        aria-label="Like this publication">
+                                    <svg id="like-icon-{{ pub.id }}" data-lucide="heart" class="w-5 h-5 {% if pub.liked_by_user %}fill-hot-pink text-hot-pink{% else %}text-gray-400{% endif %}"></svg>
+                                    <span id="like-count-{{ pub.id }}" class="text-gray-300 font-medium">{{ pub.likes_count }}</span>
+                                </button>
+                                
+                                <!-- Comment Button -->
+                                <button class="flex items-center space-x-1 text-gray-400 hover:text-white transition" 
+                                        onclick="toggleComments({{ pub.id | default(0) }})" 
+                                        aria-controls="comments-section-{{ pub.id }}"
+                                        aria-expanded="false">
+                                    <svg data-lucide="message-square" class="w-5 h-5"></svg>
+                                    <span id="comment-count-{{ pub.id }}">{{ pub.comments_count }}</span>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Comments Section (Initially Hidden) -->
+                        <div id="comments-section-{{ pub.id }}" class="border-t border-gray-800 pt-4 mt-4 hidden">
+                            <!-- Comment Composer -->
+                            {% if current_user %}
+                            <div class="mb-4">
+                                <form onsubmit="postComment(event, {{ pub.id | default(0) }})" class="flex space-x-2">
+                                    <textarea name="comment_text" placeholder="Add a comment (max 250 chars)..." maxlength="250" rows="1" required
+                                              class="flex-grow p-2 rounded-lg bg-gray-800 border border-gray-700 text-white resize-none" aria-label="Comment composer"></textarea>
+                                    <button type="submit" class="bg-hot-pink text-white py-2 px-4 rounded-lg hover:bg-pink-700 transition font-medium" aria-label="Post comment">
+                                        Post
+                                    </button>
+                                </form>
+                            </div>
+                            {% else %}
+                            <p class="text-sm text-gray-500 mb-4">Log in to comment on this post.</p>
+                            {% endif %}
+
+                            <!-- Comments List -->
+                            <div id="comments-list-{{ pub.id }}" class="space-y-3">
+                                {% for comment_tuple in pub.comments %}
+                                    {% set comment = comment_tuple[0] %}
+                                    {% set commenter_name = comment_tuple[1] %}
+                                    {% set commenter_avatar = comment_tuple[2] %}
+                                <div id="comment-{{ comment.id }}" class="flex items-start space-x-3 text-sm">
+                                    <div class="w-7 h-7 rounded-full overflow-hidden flex-shrink-0">
+                                        <img src="https://placehold.co/30x30/333/FFF?text={{ commenter_name[0] }}" alt="{{ commenter_name }}" class="w-full h-full object-cover">
+                                    </div>
+                                    <div class="flex-grow bg-gray-800 p-3 rounded-xl">
+                                        <div class="flex justify-between items-center">
+                                            <span class="font-semibold text-hot-pink">{{ commenter_name }}</span>
+                                            <span class="text-xs text-gray-500">{{ comment.created_at.strftime('%Y-%m-%d') }}</span>
+                                        </div>
+                                        <p class="text-gray-300 mt-1">{{ comment.comment_text }}</p>
+                                    </div>
+                                    {% if current_user and current_user.id == comment.client_id %}
+                                    <button onclick="deleteComment({{ comment.id | default(0) }})" class="text-gray-600 hover:text-red-500 transition" aria-label="Delete comment">
+                                        <svg data-lucide="x" class="w-4 h-4"></svg>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                    </div>
+                    {% else %}
+                    <p class="text-gray-500 text-center text-lg mt-10">No publications to show yet. Check back soon!</p>
+                    {% endfor %}
+                </div>
+            </section>
+        </div>
+
+        <!-- Column 3: Comments & Ratings (Old Reviews) -->
+        <section class="lg:col-span-1 space-y-8">
+            <div class="glass-card p-6 rounded-xl">
+                <h2 class="text-3xl font-bold text-hot-pink mb-6 border-b border-hot-pink/30 pb-3">Service Reviews ({{ comments|length }})</h2>
+                
+                {% if current_user and current_user.type == 'client' %}
+                <form method="POST" action="{{ url_for('add_comment', coiffeur_id=user.id) }}" class="mb-6 border-b border-gray-700 pb-4">
+                    <textarea name="comment_text" rows="2" placeholder="Leave your service review here..." required
+                              class="w-full p-3 rounded-lg bg-gray-800 border border-hot-pink/50 text-white focus:outline-none focus:ring-1 focus:ring-hot-pink"></textarea>
+                    <button type="submit" class="cta-button w-full mt-2 bg-hot-pink text-white py-2 rounded-lg hover:bg-pink-700">Submit Review</button>
+                </form>
+                {% endif %}
+
+                <!-- Comments List -->
+                <div class="space-y-4 max-h-96 overflow-y-auto pr-2">
+                    {% for comment in comments %}
+                        <div class="border-b border-gray-800 pb-3 last:border-b-0">
+                            <p class="text-gray-300 italic mb-1">"{{ comment.comment }}"</p>
+                            <div class="flex justify-between items-center text-xs text-gray-500">
+                                <span>- {{ comment.client.name }}</span>
+                                <span>{{ comment.timestamp.strftime('%Y-%m-%d') }}</span>
+                            </div>
+                        </div>
+                    {% else %}
+                        <p class="text-gray-500">Be the first to leave a service review!</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+    </div>
+
+</div>
+
+<!-- JavaScript for Interactive Features -->
+<script>
+    // FIX 1: Safely serialize all Jinja variables for JavaScript using |tojson.
+    const STYLIST_ID = {{ user.id | default(None) | tojson }}; 
+    const IS_OWNER = {{ is_owner | default(false) | tojson }};
+    const USER_ID = {{ (current_user.id if current_user and current_user.id is not none else 0) | tojson }};
+    const USER_TYPE = {{ (current_user.type if current_user and current_user.type is not none else "unauthenticated") | tojson }};
+    let is_subscribed_state = {{ is_subscribed | default(false) | tojson }};
+
+    // --- Toast Notification Utility (Used across multiple functions) ---
+    function showToast(message, type = 'success', duration = 5000) {
+        const container = document.getElementById('flash-message-container');
+        const color = type === 'success' ? 'bg-green-600' : (type === 'error' ? 'bg-red-600' : (type === 'info' ? 'bg-blue-600' : 'bg-hot-pink'));
+        const ariaRole = type === 'success' ? 'status' : 'alert';
+        
+        const toast = document.createElement('div');
+        toast.className = `p-4 rounded-lg shadow-xl text-white font-semibold transition-transform duration-300 translate-x-full ${color} max-w-sm`;
+        toast.setAttribute('role', ariaRole);
+        toast.textContent = message;
+        
+        container.appendChild(toast);
+        
+        setTimeout(() => toast.style.transform = 'translateX(0)', 10);
+
+        setTimeout(() => {
+            toast.style.transform = 'translateX(100%)';
+            setTimeout(() => toast.remove(), 300);
+        }, duration);
+    }
+    
+    // =========================================================================
+    // 3. Coiffeur Space — Add/Edit Menu System
+    // =========================================================================
+    document.getElementById('add-menu-form')?.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const form = e.target;
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const data = Object.fromEntries(new FormData(form).entries());
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Adding...';
+        showToast('Adding menu item...', 'info', 2000);
+
+        try {
+            const response = await fetch('/api/coiffeur/menu', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                showToast(result.message, 'success');
+                form.reset();
+                setTimeout(() => window.location.reload(), 500); // Reload to display new item
+            } else {
+                showToast(`Failed to add item: ${result.error || 'Server error'}`, 'error');
+            }
+        } catch (error) {
+            showToast('Network error during menu item creation.', 'error');
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Add Item';
+        }
+    });
+
+    function editMenuItem(itemId) {
+        const itemElement = document.getElementById(`menu-item-${itemId}`);
+        const nameText = itemElement.querySelector('.text-lg');
+        const descText = itemElement.querySelector('.text-sm');
+        const priceMatch = nameText.textContent.match(/([\d\.]+?)€/);
+        
+        if (!priceMatch) {
+            showToast('Could not parse item price for editing.', 'error');
+            return;
+        }
+
+        const currentName = nameText.textContent.replace(` - ${priceMatch[0]}`, '').trim();
+        const currentPrice = priceMatch[1];
+        const currentDesc = descText ? descText.textContent.trim() : '';
+
+        const newName = prompt("Edit Service Name:", currentName);
+        if (newName === null) return;
+        const newPrice = prompt("Edit Price (€):", currentPrice);
+        if (newPrice === null) return;
+        const newDesc = prompt("Edit Description:", currentDesc);
+        if (newDesc === null) return;
+
+        updateMenuItem(itemId, newName, parseFloat(newPrice), newDesc);
+    }
+    
+    async function updateMenuItem(itemId, name, price, description) {
+        showToast('Updating menu item...', 'info', 2000);
+
+        try {
+            const response = await fetch(`/api/coiffeur/menu/${itemId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: name, price: price, description: description })
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                showToast(result.message, 'success');
+                setTimeout(() => window.location.reload(), 500); // Reload to display update
+            } else {
+                showToast(`Failed to update item: ${result.error || 'Server error'}`, 'error');
+            }
+        } catch (error) {
+            showToast('Network error during menu update.', 'error');
+        }
+    }
+
+    function deleteMenuItem(itemId) {
+        if (!confirm('Are you sure you want to delete this menu item?')) return;
+        
+        sendDeleteMenuItem(itemId);
+    }
+
+    async function sendDeleteMenuItem(itemId) {
+        showToast('Deleting menu item...', 'info', 2000);
+
+        try {
+            const response = await fetch(`/api/coiffeur/menu/${itemId}`, {
+                method: 'DELETE'
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                showToast(result.message, 'success');
+                document.getElementById(`menu-item-${itemId}`).remove();
+                setTimeout(() => window.location.reload(), 500);
+            } else {
+                showToast(`Failed to delete item: ${result.error || 'Server error'}`, 'error');
+            }
+        } catch (error) {
+            showToast('Network error during menu deletion.', 'error');
+        }
+    }
+    
+    // =========================================================================
+    // 2. Déplacement Feature (Coiffeur Side)
+    // =========================================================================
+    async function submitPriceProposal(e, requestId) {
+        e.preventDefault();
+        const form = e.target;
+        const formData = new FormData(form);
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const card = form.closest('.glass-card');
+
+        const data = {
+            price: parseFloat(formData.get('proposed_price')),
+            notes: formData.get('notes')
+        };
+        
+        if (isNaN(data.price) || data.price <= 0) {
+            showToast('Please enter a valid price.', 'error');
+            return;
+        }
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Sending...';
+        showToast('Submitting price proposal...', 'info', 10000);
+
+        try {
+            const response = await fetch(`/api/deplacement/propose/${requestId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                showToast(result.message, 'success');
+                // Remove the request card immediately upon successful proposal
+                card.remove(); 
+            } else {
+                showToast(`Proposal failed: ${result.error || 'Server error'}`, 'error');
+            }
+        } catch (error) {
+            showToast('Network error during proposal submission.', 'error');
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Propose Price';
+        }
+    }
+    
+    // --- Existing JS functions (Subscription, Capacity, Uploads, Likes, Comments, Reservations) ---
+    
+    // [Existing toggleSubscription function]
+    async function toggleSubscription(coiffeurId) {
+        if (USER_TYPE !== 'client') {
+            showToast('You must be logged in as a client to subscribe.', 'error');
+            return;
+        }
+
+        const subscribeBtn = document.getElementById('subscribe-btn');
+        const subscribeText = document.getElementById('subscribe-text');
+        
+        subscribeBtn.disabled = true;
+        const method = is_subscribed_state ? 'DELETE' : 'POST';
+        const url = `/api/coiffeur/${coiffeurId}/subscribe`;
+
+        showToast(is_subscribed_state ? 'Unsubscribing...' : 'Subscribing...', 'info', 2000);
+
+        try {
+            const response = await fetch(url, { method: method });
+            const result = await response.json();
+
+            if (response.ok) {
+                is_subscribed_state = !is_subscribed_state; 
+                
+                if (is_subscribed_state) {
+                    subscribeText.textContent = 'Following';
+                    subscribeBtn.classList.remove('bg-gray-800', 'border', 'border-hot-pink', 'text-hot-pink', 'hover:bg-hot-pink', 'hover:text-white');
+                    subscribeBtn.classList.add('bg-green-600', 'text-white', 'hover:bg-green-700');
+                    showToast('Successfully subscribed!', 'success');
+                } else {
+                    subscribeText.textContent = 'Subscribe';
+                    subscribeBtn.classList.remove('bg-green-600', 'text-white', 'hover:bg-green-700');
+                    subscribeBtn.classList.add('bg-gray-800', 'border', 'border-hot-pink', 'text-hot-pink', 'hover:bg-hot-pink', 'hover:text-white');
+                    showToast('Successfully unsubscribed.', 'info');
+                }
+            } else {
+                showToast(`Subscription failed: ${result.error || 'Server error'}`, 'error');
+            }
+        } catch (error) {
+            showToast('Network error during subscription toggle.', 'error');
+        } finally {
+            subscribeBtn.disabled = false;
+        }
+    }
+    
+    // [Existing capacity-form submit listener]
+    document.getElementById('capacity-form')?.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const capacityInput = document.getElementById('current_capacity');
+        const waitingInput = document.getElementById('waiting_count');
+        const saveBtn = document.getElementById('save-capacity-btn');
+        
+        if (parseInt(capacityInput.value) < 0 || parseInt(waitingInput.value) < 0) {
+            showToast('Capacity and Waiting counts cannot be negative.', 'error');
+            return;
+        }
+
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving...';
+        
+        const payload = {
+            current_capacity: parseInt(capacityInput.value),
+            waiting_count: parseInt(waitingInput.value)
+        };
+        
+        try {
+            const response = await fetch(`/api/stylists/${STYLIST_ID}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            const result = await response.json();
+            
+            if (response.ok) {
+                document.getElementById('capacity-display').textContent = `Attending: ${result.current_capacity} ${result.current_capacity === 1 ? 'Person' : 'People'}`;
+                document.getElementById('waiting-display').textContent = `Waiting: ${result.waiting_count} ${result.waiting_count === 1 ? 'Person' : 'People'}`;
+                showToast(result.message, 'success');
+            } else {
+                showToast(`Failed to update status: ${result.error || 'Server error'}`, 'error');
+            }
+        } catch (error) {
+            showToast('Network error: Could not connect to API.', 'error');
+        } finally {
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Save Status';
+        }
+    });
+
+    // [Existing avatar upload listeners]
+    document.getElementById('upload-avatar-btn')?.addEventListener('click', () => {
+        document.getElementById('avatar-input').click();
+    });
+
+    document.getElementById('avatar-input')?.addEventListener('change', async function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        if (!file.type.match('image/jpeg') && !file.type.match('image/png') && !file.type.match('image/jpg')) {
+            showToast('Invalid file type. Please use JPG, JPEG, or PNG.', 'error');
+            e.target.value = '';
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('avatar_file', file); 
+        
+        showToast('Uploading profile picture...', 'info', 10000); 
+
+        try {
+            const response = await fetch('/api/profile/upload_avatar', {
+                method: 'POST',
+                body: formData 
+            });
+
+            const result = await response.json();
+            
+            if (response.ok) {
+                document.getElementById('profile-img').src = result.image_url;
+                showToast(result.message, 'success');
+            } else {
+                showToast(`Upload failed: ${result.error || 'Server error'}`, 'error');
+            }
+        } catch (error) {
+            showToast('Network error during profile picture upload.', 'error');
+        } finally {
+            e.target.value = ''; 
+        }
+    });
+
+    // [Existing publication functions]
+    const publicationFiles = []; 
+    const pubImageInput = document.getElementById('pub-image-input');
+    const imagePreviewContainer = document.getElementById('image-preview-container');
+
+    document.getElementById('add-image-btn')?.addEventListener('click', () => {
+        if (publicationFiles.length >= 4) {
+            showToast('Maximum of 4 images allowed per post.', 'error');
+            return;
+        }
+        pubImageInput.click();
+    });
+
+    pubImageInput?.addEventListener('change', function(e) {
+        const newFiles = Array.from(e.target.files).slice(0, 4 - publicationFiles.length);
+        
+        newFiles.forEach(file => {
+             if (!file.type.match('image/jpeg') && !file.type.match('image/png') && !file.type.match('image/jpg')) {
+                showToast(`File "${file.name}" has an invalid type and was ignored.`, 'error');
+                return;
+            }
+            publicationFiles.push(file); 
+        });
+
+        renderPublicationPreviews();
+        e.target.value = ''; 
+    });
+
+    function renderPublicationPreviews() {
+        imagePreviewContainer.innerHTML = ''; 
+        
+        publicationFiles.forEach((file, index) => {
+            const fileUrl = URL.createObjectURL(file); 
+            
+            const preview = document.createElement('div');
+            preview.className = 'relative group';
+            preview.innerHTML = `
+                <img src="${fileUrl}" alt="Preview ${index + 1}" class="w-full h-20 object-cover rounded-md">
+                <button type="button" onclick="removePublicationImage(${index})" class="absolute top-0 right-0 bg-red-600 rounded-full w-5 h-5 flex items-center justify-center text-white text-xs opacity-0 group-hover:opacity-100 transition" aria-label="Remove image">
+                    <svg data-lucide="x" class="w-3 h-3"></svg>
+                </button>
+            `;
+            imagePreviewContainer.appendChild(preview);
+        });
+        lucide.createIcons();
+    }
+
+    function removePublicationImage(indexToRemove) {
+        publicationFiles.splice(indexToRemove, 1);
+        renderPublicationPreviews();
+        showToast('Image removed from draft.', 'info', 2000);
+    }
+
+    document.getElementById('create-publication-form')?.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const text = document.getElementById('pub-text').value.trim();
+        const publishBtn = document.getElementById('publish-btn');
+        
+        if (!text && publicationFiles.length === 0) {
+            showToast('Post must contain text or at least one image.', 'error');
+            return;
+        }
+
+        publishBtn.disabled = true;
+        publishBtn.textContent = 'Publishing...';
+        showToast('Publishing post and uploading images...', 'info', 10000);
+
+        const formData = new FormData();
+        formData.append('text', text);
+        
+        publicationFiles.forEach(file => {
+            formData.append('pub_images', file, file.name); 
+        });
+
+        try {
+            const response = await fetch('/api/publications/with_images', {
+                method: 'POST',
+                body: formData 
+            });
+
+            const result = await response.json();
+            
+            if (response.ok) {
+                showToast('Post published successfully!', 'success');
+                document.getElementById('pub-text').value = '';
+                publicationFiles.length = 0;
+                renderPublicationPreviews();
+                setTimeout(() => window.location.reload(), 500);
+            } else {
+                showToast(`Failed to publish: ${result.error || 'Server error'}`, 'error');
+            }
+        } catch (error) {
+            showToast('Network error: Could not connect to API.', 'error');
+        } finally {
+            publishBtn.disabled = false;
+            publishBtn.textContent = 'Publish';
+        }
+    });
+
+    async function toggleLike(pubId) {
+        if (!USER_ID) {
+            showToast('You must be logged in to like posts.', 'error');
+            return;
+        }
+        
+        const likeIcon = document.getElementById(`like-icon-${pubId}`);
+        const likeCountSpan = document.getElementById(`like-count-${pubId}`);
+        let currentLikes = parseInt(likeCountSpan.textContent);
+        
+        const isLiked = likeIcon.classList.contains('fill-hot-pink');
+        const method = isLiked ? 'DELETE' : 'POST';
+        
+        if (isLiked) {
+            likeIcon.classList.remove('fill-hot-pink', 'text-hot-pink');
+            likeIcon.classList.add('text-gray-400');
+            likeCountSpan.textContent = currentLikes - 1;
+        } else {
+            likeIcon.classList.add('fill-hot-pink', 'text-hot-pink');
+            likeIcon.classList.remove('text-gray-400');
+            likeCountSpan.textContent = currentLikes + 1;
+        }
+
+        try {
+            const response = await fetch(`/api/publications/${pubId}/like`, { method: method });
+            const result = await response.json();
+            
+            if (response.ok) {
+                likeCountSpan.textContent = result.likes_count;
+                if (result.liked_by_user) {
+                    likeIcon.classList.add('fill-hot-pink', 'text-hot-pink');
+                    likeIcon.classList.remove('text-gray-400');
+                } else {
+                    likeIcon.classList.remove('fill-hot-pink', 'text-hot-pink');
+                    likeIcon.classList.add('text-gray-400');
+                }
+            } else {
+                showToast(`Failed to toggle like: ${result.error || 'Server error'}`, 'error');
+                likeIcon.classList.toggle('fill-hot-pink');
+                likeCountSpan.textContent = currentLikes;
+            }
+        } catch (error) {
+            showToast('Network error during like toggle.', 'error');
+            likeIcon.classList.toggle('fill-hot-pink');
+            likeCountSpan.textContent = currentLikes;
+        }
+    }
+
+    function toggleComments(pubId) {
+        const commentsSection = document.getElementById(`comments-section-${pubId}`);
+        const isHidden = commentsSection.classList.contains('hidden');
+        
+        if (isHidden) {
+            commentsSection.classList.remove('hidden');
+            commentsSection.setAttribute('aria-expanded', 'true');
+        } else {
+            commentsSection.classList.add('hidden');
+            commentsSection.setAttribute('aria-expanded', 'false');
+        }
+    }
+    
+    async function postComment(e, pubId) {
+        e.preventDefault();
+        if (!USER_ID) return;
+        
+        const form = e.target;
+        const textarea = form.querySelector('textarea');
+        const postBtn = form.querySelector('button');
+        const commentText = textarea.value.trim();
+        
+        if (!commentText) return;
+
+        postBtn.disabled = true;
+        postBtn.textContent = 'Sending...';
+
+        try {
+            const response = await fetch(`/api/publications/${pubId}/comments`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: commentText })
+            });
+            
+            const result = await response.json();
+            
+            if (response.ok) {
+                showToast('Comment posted.', 'success');
+                textarea.value = ''; 
+                
+                const commentsList = document.getElementById(`comments-list-${pubId}`);
+                const newCommentHtml = `
+                    <div id="comment-${result.id}" class="flex items-start space-x-3 text-sm">
+                        <div class="w-7 h-7 rounded-full overflow-hidden flex-shrink-0">
+                            <img src="https://placehold.co/30x30/333/FFF?text=${result.client_name[0]}" alt="${result.client_name}" class="w-full h-full object-cover">
+                        </div>
+                        <div class="flex-grow bg-gray-800 p-3 rounded-xl">
+                            <div class="flex justify-between items-center">
+                                <span class="font-semibold text-hot-pink">${result.client_name}</span>
+                                <span class="text-xs text-gray-500">${new Date().toISOString().slice(0, 10)}</span>
+                            </div>
+                            <p class="text-gray-300 mt-1">${result.comment_text}</p>
+                        </div>
+                        <button onclick="deleteComment(${result.id})" class="text-gray-600 hover:text-red-500 transition" aria-label="Delete comment">
+                            <svg data-lucide="x" class="w-4 h-4"></svg>
+                        </button>
+                    </div>
+                `;
+                commentsList.insertAdjacentHTML('beforeend', newCommentHtml);
+                
+                const commentCountSpan = document.getElementById(`comment-count-${pubId}`);
+                commentCountSpan.textContent = parseInt(commentCountSpan.textContent) + 1;
+                
+            } else {
+                showToast(`Failed to post comment: ${result.error || 'Server error'}`, 'error');
+            }
+        } catch (error) {
+            showToast('Network error during comment post.', 'error');
+        } finally {
+            postBtn.disabled = false;
+            postBtn.textContent = 'Post';
+        }
+    }
+    
+    async function deleteComment(commentId) {
+        if (!USER_ID) return;
+        
+        if (!confirm('Are you sure you want to delete this comment?')) return;
+        
+        try {
+            const response = await fetch(`/api/comments/${commentId}`, { method: 'DELETE' });
+            const result = await response.json();
+            
+            if (response.ok) {
+                showToast('Comment deleted.', 'success');
+                const commentElement = document.getElementById(`comment-${commentId}`);
+                const pubCard = commentElement.closest('.publication-card');
+                const pubId = pubCard.dataset.pubId;
+                
+                commentElement.remove();
+                
+                const commentCountSpan = document.getElementById(`comment-count-${pubId}`);
+                commentCountSpan.textContent = parseInt(commentCountSpan.textContent) - 1;
+
+            } else {
+                showToast(`Failed to delete comment: ${result.error || 'Server error'}`, 'error');
+            }
+        } catch (error) {
+            showToast('Network error during comment deletion.', 'error');
+        }
+    }
+    
+    async function deletePublication(pubId) {
+        if (!IS_OWNER || pubId === 0) return;
+        
+        if (!confirm('Are you sure you want to delete this publication?')) return;
+        
+        showToast(`Mock: Publication ${pubId} deleted. Reloading page...`, 'success');
+        setTimeout(() => window.location.reload(), 1000);
+    }
+
+    // [Existing reservation functions]
+    function getStatusClass(status) {
+        if (status === 'Confirmed') return 'bg-green-500/20 text-green-400 border-green-500';
+        if (status === 'Completed') return 'bg-blue-500/20 text-blue-400 border-blue-500';
+        if (status === 'Pending') return 'bg-yellow-500/20 text-yellow-400 border-yellow-500';
+        if (status === 'Cancelled') return 'bg-red-500/20 text-red-400 border-red-500';
+        return 'bg-gray-500/20 text-gray-400 border-gray-500';
+    }
+
+    function renderReservations(reservations) {
+        const tbody = document.getElementById('reservations-table-body');
+        const countSpan = document.getElementById('reservation-count');
+        const wrapper = document.getElementById('reservations-table-wrapper');
+        
+        tbody.innerHTML = ''; // Clear existing content
+        countSpan.textContent = `(${reservations.length} total)`;
+
+        if (reservations.length === 0) {
+            wrapper.classList.add('hidden');
+            const noData = document.createElement('p');
+            noData.className = 'text-gray-500 text-center p-4';
+            noData.textContent = 'No upcoming reservations found.';
+            document.getElementById('reservations-container').appendChild(noData);
+            return;
+        }
+
+        wrapper.classList.remove('hidden');
+
+        reservations.forEach(res => {
+            const statusClass = getStatusClass(res.status);
+            const row = document.createElement('tr');
+            row.className = 'hover:bg-gray-800 transition';
+            
+            let actionButtons = '';
+            if (res.status === 'Pending') {
+                actionButtons = `
+                    <button onclick="updateReservationStatus(${res.id}, 'Confirmed')" 
+                        class="text-green-400 hover:text-green-300 transition p-1" title="Confirm Reservation">
+                        <svg data-lucide="check-circle" class="w-5 h-5"></svg>
+                    </button>
+                    <button onclick="updateReservationStatus(${res.id}, 'Cancelled')" 
+                        class="text-red-400 hover:text-red-300 transition p-1" title="Cancel Reservation">
+                        <svg data-lucide="x-circle" class="w-5 h-5"></svg>
+                    </button>
+                `;
+            } else if (res.status === 'Confirmed') {
+                actionButtons = `
+                    <button onclick="updateReservationStatus(${res.id}, 'Completed')" 
+                        class="text-blue-400 hover:text-blue-300 transition p-1" title="Mark as Completed">
+                        <svg data-lucide="calendar-check" class="w-5 h-5"></svg>
+                    </button>
+                `;
+            } else {
+                 actionButtons = `<span class="text-gray-600 text-xs">N/A</span>`;
+            }
+            
+            row.innerHTML = `
+                <td class="px-4 py-3 whitespace-nowrap">
+                    <span class="font-bold text-white">${res.date}</span><br>
+                    <span class="text-hot-pink">${res.time}</span>
+                </td>
+                <td class="px-4 py-3 whitespace-nowrap">
+                    <span class="font-medium text-white">${res.client_name}</span>
+                </td>
+                <td class="px-4 py-3 whitespace-nowrap hidden sm:table-cell">
+                    ${res.client_phone}
+                </td>
+                <td class="px-4 py-3 hidden md:table-cell">
+                    ${res.service}
+                </td>
+                <td class="px-4 py-3 text-sm italic text-gray-400 max-w-xs truncate hidden lg:table-cell" title="${res.notes}">
+                    ${res.notes}
+                </td>
+                <td class="px-4 py-3 text-center whitespace-nowrap">
+                    <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider border ${statusClass}">
+                        ${res.status}
+                    </span>
+                </td>
+                <td class="px-4 py-3 text-center whitespace-nowrap">
+                    <div class="flex justify-center space-x-2">
+                        ${actionButtons}
+                    </div>
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
+        lucide.createIcons();
+    }
+
+    async function fetchReservations() {
+        const loading = document.getElementById('reservations-loading');
+        if (!loading) return; 
+        
+        loading.classList.remove('hidden');
+
+        try {
+            const maxRetries = 3;
+            let delay = 1000;
+            let response;
+            
+            for (let i = 0; i < maxRetries; i++) {
+                response = await fetch(`/api/coiffeur/${STYLIST_ID}/reservations`);
+                if (response.ok) break;
+                if (i < maxRetries - 1) {
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    delay *= 2;
+                }
+            }
+
+            const data = await response.json();
+            
+            if (response.ok) {
+                renderReservations(data);
+            } else {
+                showToast(`Failed to load reservations: ${data.error || 'Unknown error'}`, 'error');
+                document.getElementById('reservations-container').innerHTML = `<p class="text-red-400 text-center p-4">Error: ${data.error || 'Could not load data.'}</p>`;
+            }
+        } catch (error) {
+            showToast('Network error: Could not fetch reservation data.', 'error');
+            document.getElementById('reservations-container').innerHTML = `<p class="text-red-400 text-center p-4">Network Error: Check console for details.</p>`;
+            console.error('Fetch reservations error:', error);
+        } finally {
+            loading.classList.add('hidden');
+        }
+    }
+    
+    async function updateReservationStatus(reservationId, newStatus) {
+        if (!IS_OWNER) {
+            showToast('Unauthorized action.', 'error');
+            return;
+        }
+        
+        showToast(`Updating reservation ${reservationId} to ${newStatus}...`, 'info');
+
+        try {
+            const maxRetries = 3;
+            let delay = 1000;
+            let response;
+
+            for (let i = 0; i < maxRetries; i++) {
+                response = await fetch(`/api/reservations/${reservationId}/status`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: newStatus })
+                });
+                if (response.ok) break;
+                if (i < maxRetries - 1) {
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    delay *= 2;
+                }
+            }
+
+            const result = await response.json();
+            
+            if (response.ok) {
+                showToast(result.message, 'success');
+                fetchReservations(); 
+            } else {
+                showToast(`Failed to update status: ${result.error || 'Server error'}`, 'error');
+            }
+        } catch (error) {
+            showToast('Network error: Could not update reservation status.', 'error');
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        lucide.createIcons();
+        
+        if (IS_OWNER) {
+            fetchReservations();
+        }
+    });
+</script>
+{% endblock %}

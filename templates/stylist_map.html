@@ -1,0 +1,329 @@
+{% extends "layout.html" %}
+{% block title %}Stylist Map View{% endblock %}
+
+{% block head %}
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <!-- Custom CSS for Responsive Map Layout -->
+    <style>
+        /*
+         * CSS Fixes for Leaflet Map Integrity
+         * 1. Ensure map and container have defined height/width (already present).
+         * 2. The sticky desktop layout might be causing initial sizing issues.
+         * We ensure the position properties are correct for the fixed height.
+         */
+        #map-container {
+            /* Fixed height for mobile, sticky on desktop */
+            height: 320px; 
+            min-height: 320px;
+            width: 100%;
+            border-radius: 0.75rem;
+            overflow: hidden;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.25);
+            margin-bottom: 2rem; /* Separator on mobile/stacked view */
+            /* Ensure the map container is relative to support the map tiles */
+            position: relative; 
+        }
+        
+        #map {
+            /* It is CRUCIAL that the map element itself has 100% dimensions */
+            height: 100%;
+            width: 100%;
+            /* Leaflet uses position: relative/absolute internally, ensure nothing breaks it */
+        }
+
+        /* Desktop Layout (md breakpoint and up) */
+        @media (min-width: 768px) {
+            #map-list-grid {
+                display: grid;
+                grid-template-columns: 1fr 1.5fr; /* List on left (smaller), Map on right (larger) */
+                gap: 2rem;
+            }
+            /* Reset sticky top on #map-section to be safe, using the default md:top-2 */
+            #map-section {
+                order: 2; 
+                position: sticky; /* Sticky is applied to the parent of map-container */
+                top: 2rem; /* Reverting to md:top-2 equivalent for stability */
+                align-self: start; 
+            }
+            #map-container {
+                /* Map fixed height on desktop */
+                height: 70vh;
+                min-height: 600px;
+                margin-bottom: 0; 
+                position: relative; 
+            }
+            #stylist-list-section {
+                order: 1; /* List first on the left */
+            }
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+<div class="page-transition container mx-auto px-4 py-12">
+    <h1 class="text-4xl font-bold text-hot-pink mb-10 border-b border-hot-pink/50 pb-4">
+        Stylists Near You
+    </h1>
+
+    <div id="map-list-grid">
+        
+        <!-- List Section (Order 1 on mobile, 1 on desktop) -->
+        <div id="stylist-list-section" class="space-y-6">
+            <h2 class="text-2xl font-semibold text-white mb-4">Stylist List</h2>
+            <div id="stylist-cards-container" class="space-y-4">
+                <p id="loading-message" class="text-gray-400">Loading stylist locations...</p>
+                <!-- Stylist cards will be injected here by JavaScript -->
+            </div>
+            <a href="{{ url_for('search_stylists') }}" class="mt-8 block text-center text-hot-pink hover:text-pink-400 font-bold py-3 px-6 rounded-lg border border-hot-pink/50 transition">
+                <svg data-lucide="list-ordered" class="w-5 h-5 mr-2 inline"></svg> Switch to List View
+            </a>
+        </div>
+        
+        <!-- Map Section (Order 2 on mobile, 2 on desktop) -->
+        <div id="map-section" class="md:sticky md:top-2">
+            <!-- Container Div -->
+            <div id="map-container">
+                <div id="map"></div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<div id="flash-message-container" class="fixed bottom-4 right-4 z-50"></div>
+
+<!-- Leaflet JavaScript Library -->
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const defaultLat = 48.8566; // Paris fallback
+        const defaultLng = 2.3522; 
+        const defaultZoom = 13;
+        
+        let map;
+        let markers = [];
+        let allStylists = [];
+        let currentHighlightId = null;
+        
+        const cardContainer = document.getElementById('stylist-cards-container');
+        const loadingMessage = document.getElementById('loading-message');
+        const flashContainer = document.getElementById('flash-message-container');
+
+        // --- Flash Message Utility (Unchanged) ---
+        function showFlashMessage(message, type = 'info') {
+            let colorClass = 'bg-blue-600';
+            if (type === 'success') colorClass = 'bg-green-600';
+            if (type === 'error') colorClass = 'bg-red-600';
+            if (type === 'info') colorClass = 'bg-yellow-600';
+
+            const div = document.createElement('div');
+            div.className = `p-4 rounded-lg shadow-xl text-white font-semibold transition-opacity duration-300 ${colorClass}`;
+            div.textContent = message;
+            div.setAttribute('role', type === 'error' ? 'alert' : 'status');
+            
+            // Limit to max 3 messages
+            while (flashContainer.children.length >= 3) {
+                flashContainer.removeChild(flashContainer.firstChild);
+            }
+            flashContainer.appendChild(div);
+
+            setTimeout(() => {
+                div.style.opacity = '0';
+                setTimeout(() => div.remove(), 300);
+            }, 5000);
+        }
+
+        // --- Map Initialization (FIX APPLIED HERE) ---
+        function initializeMap(lat, lng, zoom) {
+            // FIX: Remove existing map if any, which is correctly done.
+            if (map) map.remove(); 
+            
+            // 1. Initialize map
+            map = L.map('map').setView([lat, lng], zoom);
+            
+            // 2. Add tile layer
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                maxZoom: 18,
+            }).addTo(map);
+
+            // FIX: Force size validation immediately after adding tiles. 
+            // This is the most crucial step for fixing distorted tiles after layout rendering.
+            // Using a slight delay in case of any remaining layout issues, 
+            // although ideally, it should work instantly.
+            setTimeout(() => {
+                map.invalidateSize(true);
+            }, 10);
+            
+            // FIX: Re-center map on window resize to ensure responsiveness (Keep existing handler)
+            let resizeTimer;
+            window.addEventListener('resize', () => {
+                clearTimeout(resizeTimer);
+                // Force size validation on resize
+                resizeTimer = setTimeout(() => map.invalidateSize(true), 150); 
+            });
+            
+            return map; // Return the initialized map instance
+        }
+        
+        // --- Marker & Card Interaction (Unchanged) ---
+        function highlight(stylistId, centerOnMap = false) {
+            // Remove previous highlight
+            if (currentHighlightId) {
+                document.getElementById(`stylist-card-${currentHighlightId}`)?.classList.remove('border-white', 'scale-[1.02]');
+                const prevMarker = markers.find(m => m.options.stylistId === currentHighlightId);
+                if (prevMarker) prevMarker.setIcon(L.divIcon({ className: 'custom-marker-default', html: `<div class="bg-hot-pink w-6 h-6 rounded-full border-2 border-white shadow-lg text-white font-bold flex items-center justify-center text-xs">${prevMarker.options.stylistInitial}</div>` }));
+            }
+
+            // Apply new highlight
+            currentHighlightId = stylistId;
+            const card = document.getElementById(`stylist-card-${stylistId}`);
+            if (card) {
+                card.classList.add('border-white', 'scale-[1.02]');
+                card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+            
+            const marker = markers.find(m => m.options.stylistId === stylistId);
+            if (marker) {
+                 marker.setIcon(L.divIcon({ className: 'custom-marker-highlight', html: `<div class="bg-hot-pink w-8 h-8 rounded-full border-4 border-white shadow-xl text-white font-bold flex items-center justify-center text-base">${marker.options.stylistInitial}</div>` }));
+                 if (centerOnMap) {
+                     map.setView(marker.getLatLng(), map.getZoom() > 14 ? map.getZoom() : 14, {animate: true});
+                     marker.openPopup();
+                 }
+            }
+        }
+
+        // --- Render Functions (Unchanged) ---
+        
+        function createCardHtml(stylist) {
+            const waitTimeClass = stylist.waiting_count > 3 ? 'text-red-400' : stylist.waiting_count > 0 ? 'text-yellow-400' : 'text-green-400';
+            const capacityClass = stylist.current_capacity > 0 ? 'text-blue-400' : 'text-gray-500';
+            
+            return `
+                <div id="stylist-card-${stylist.id}" class="stylist-card glass-card p-4 rounded-xl shadow-lg border-2 border-transparent transition transform duration-300 hover:scale-[1.02] cursor-pointer" 
+                     data-id="${stylist.id}" onclick="highlight(${stylist.id}, true)" role="button" tabindex="0" aria-label="View ${stylist.name}'s profile and center map">
+                    <div class="flex items-center space-x-4">
+                        <div class="flex-shrink-0 w-12 h-12 rounded-full overflow-hidden border-2 border-hot-pink">
+                            <img src="https://placehold.co/50x50/111/FF69B4?text=${stylist.name[0]}" alt="${stylist.name}" class="w-full h-full object-cover">
+                        </div>
+                        <div class="flex-grow">
+                            <a href="${stylist.profile_url}" class="text-lg font-bold text-white hover:text-hot-pink transition">${stylist.name} (${stylist.category})</a>
+                            <p class="text-xs text-gray-400">${stylist.address}</p>
+                        </div>
+                        <div class="text-right flex-shrink-0 space-y-1">
+                            <span class="block text-sm font-semibold ${waitTimeClass}">Wait: ${stylist.waiting_count}</span>
+                            <span class="block text-xs font-medium ${capacityClass}">Attending: ${stylist.current_capacity}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function renderStylists(stylists) {
+            loadingMessage.classList.add('hidden');
+            cardContainer.innerHTML = '';
+            
+            if (stylists.length === 0) {
+                cardContainer.innerHTML = '<p class="text-gray-500 text-center">No stylists with location data found.</p>';
+                return;
+            }
+
+            // Render cards
+            stylists.forEach(stylist => {
+                cardContainer.insertAdjacentHTML('beforeend', createCardHtml(stylist));
+            });
+
+            // Add markers to map
+            markers.forEach(m => m.remove());
+            markers = [];
+            
+            stylists.forEach(stylist => {
+                const markerHtml = `<div class="bg-hot-pink w-6 h-6 rounded-full border-2 border-white shadow-lg text-white font-bold flex items-center justify-center text-xs">${stylist.name[0]}</div>`;
+                
+                const customIcon = L.divIcon({
+                    className: 'custom-marker-default',
+                    html: markerHtml,
+                    iconSize: [24, 24],
+                    iconAnchor: [12, 12]
+                });
+
+                const marker = L.marker([stylist.lat, stylist.lng], {
+                    icon: customIcon,
+                    stylistId: stylist.id, // Custom option for lookups
+                    stylistInitial: stylist.name[0]
+                }).addTo(map);
+
+                // Marker Popup Content
+                const serviceList = stylist.services.map(s => `<li>${s}</li>`).join('');
+                const popupContent = `
+                    <div class="font-sans text-gray-900">
+                        <h3 class="font-bold text-lg text-hot-pink">${stylist.name}</h3>
+                        <p class="text-sm">${stylist.address}</p>
+                        <p class="text-xs mt-1">Wait: ${stylist.waiting_count} | Attending: ${stylist.current_capacity}</p>
+                        <div class="mt-2 text-xs">
+                            <p class="font-semibold">Services:</p>
+                            <ul class="list-disc list-inside ml-2">${serviceList}</ul>
+                        </div>
+                        <a href="${stylist.profile_url}" target="_blank" class="text-blue-500 hover:text-blue-700 text-sm mt-2 block font-semibold">View Profile</a>
+                    </div>
+                `;
+                marker.bindPopup(popupContent);
+                
+                // Marker click handler: highlights card and scrolls to it
+                marker.on('click', () => {
+                    highlight(stylist.id, false);
+                });
+                
+                markers.push(marker);
+            });
+            
+            // Fit map to markers (only if there are markers)
+            if (markers.length > 0) {
+                const group = new L.featureGroup(markers);
+                map.fitBounds(group.getBounds().pad(0.1));
+            }
+            
+            // FIX: Force size validation again after adding all elements
+            map.invalidateSize(true);
+        }
+        
+        // --- Data Fetching (FIX APPLIED HERE) ---
+        async function fetchStylistLocations() {
+            try {
+                // Initialize map with fallback coordinates immediately.
+                // This ensures the Leaflet DOM element is correctly created and sized early.
+                map = initializeMap(defaultLat, defaultLng, 10);
+                
+                // GET /api/coiffeurs/locations
+                const response = await fetch('/api/coiffeurs/locations');
+                const data = await response.json();
+                
+                if (data.length > 0) {
+                    allStylists = data;
+                    renderStylists(allStylists);
+                    
+                    // The map will automatically fit bounds in renderStylists, 
+                    // so we don't need a specific setView here.
+
+                } else {
+                    loadingMessage.textContent = 'No stylists with location data found. Try the List View.';
+                    // If no data, keep the map centered on the default city (Paris)
+                }
+
+            } catch (error) {
+                console.error('Error fetching stylist locations:', error);
+                loadingMessage.textContent = 'Failed to load stylist locations due to a network error.';
+                showFlashMessage('Error loading map data.', 'error');
+            }
+        }
+        
+        // Expose highlight function globally for card clicks
+        window.highlight = highlight;
+
+        // Start everything
+        // FIX: The map initialization is now called synchronously before the fetch.
+        fetchStylistLocations();
+    });
+</script>
+{% endblock %}

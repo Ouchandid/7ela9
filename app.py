@@ -14,21 +14,14 @@ from sqlalchemy import or_
 # --- Configuration ---
 app = Flask(__name__)
 
-# --- MySQL Configuration Provided by User ---
-DB_CONFIG = {
-    'host': "localhost",
-    'user': "root",
-    'password': "",
-    'database': "myhair",
-    'port': 3307
-}
+# --- NEW: Load configuration dynamically from config.py ---
+from config import Config
+app.config.from_object(Config) # Loads SQLALCHEMY_DATABASE_URI and SQLALCHEMY_TRACK_MODIFICATIONS
+# --------------------------------------------------------
 
-# Constructing the MySQL connection URI using the configuration
-# Format: mysql+pymysql://user:password@host:port/database
-app.config['SQLALCHEMY_DATABASE_URI'] = (
-    f"mysql+pymysql://{DB_CONFIG['user']}:{DB_CONFIG['password']}@{DB_CONFIG['host']}:{DB_CONFIG['port']}/{DB_CONFIG['database']}"
-)
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+# The old hardcoded MySQL DB_CONFIG block has been removed, 
+# and the DB connection is now set via app.config.from_object(Config)
+
 app.config['SECRET_KEY'] = 'a_very_secret_and_long_key_for_myhair'
 db = SQLAlchemy(app)
 # ------------------------------------------

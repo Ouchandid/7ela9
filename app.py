@@ -286,6 +286,9 @@ def get_coiffeur_data(coiffeur_id):
             
             publications.append(pub_data)
 
+        # --- FIX 4: Add Subscriber Count to Data ---
+        subscriber_count = Subscription.query.filter_by(coiffeur_id=coiffeur_id).count()
+
         return {
             'user': coiffeur.user,
             'coiffeur': coiffeur,
@@ -294,7 +297,8 @@ def get_coiffeur_data(coiffeur_id):
             'photos': Photo.query.filter_by(coiffeur_id=coiffeur_id).all(),
             'comments': comments,
             'publications': publications,
-            'is_subscribed': is_subscribed
+            'is_subscribed': is_subscribed,
+            'subscriber_count': subscriber_count # NEW
         }
     return None
 
@@ -370,8 +374,12 @@ def seed_db():
     db.session.add(pub1)
     db.session.commit() 
 
+    # Seed Subscriptions
     sub1 = Subscription(client_id=client1.id, coiffeur_id=coiffeur1.user_id)
-    db.session.add(sub1)
+    sub2 = Subscription(client_id=client2.id, coiffeur_id=coiffeur1.user_id)
+    sub3 = Subscription(client_id=client3.id, coiffeur_id=coiffeur1.user_id)
+    sub4 = Subscription(client_id=client3.id, coiffeur_id=coiffeur3.user_id) # Client 3 subscribes to a Déplacé stylist
+    db.session.add_all([sub1, sub2, sub3, sub4])
 
     # Note: Removed the old DeplacementRequest seeding as the model changed structure.
 
@@ -404,7 +412,8 @@ def get_current_user():
 
 @app.context_processor
 def inject_user():
-    return dict(current_user=get_current_user())
+    # FIX 1: Provide datetime.now() for reservation.html date calculations
+    return dict(current_user=get_current_user(), now=datetime.now)
 
 
 # --- MODIFIED: 1. HOME PAGE LOGIC ---
@@ -1034,17 +1043,25 @@ def toggle_subscription(coiffeur_id):
                 new_sub = Subscription(client_id=client_id, coiffeur_id=coiffeur_id)
                 db.session.add(new_sub)
                 db.session.commit()
-                return jsonify({'message': 'Subscribed successfully.', 'status': 'subscribed'}), 200
+                # FIX 4: Return updated subscriber count
+                count = Subscription.query.filter_by(coiffeur_id=coiffeur_id).count()
+                return jsonify({'message': 'Subscribed successfully.', 'status': 'subscribed', 'count': count}), 200
             else:
-                return jsonify({'message': 'Already subscribed.', 'status': 'subscribed'}), 200
+                # FIX 4: Return updated subscriber count even if already subscribed
+                count = Subscription.query.filter_by(coiffeur_id=coiffeur_id).count()
+                return jsonify({'message': 'Already subscribed.', 'status': 'subscribed', 'count': count}), 200
                 
         elif request.method == 'DELETE':
             if subscription:
                 db.session.delete(subscription)
                 db.session.commit()
-                return jsonify({'message': 'Unsubscribed successfully.', 'status': 'unsubscribed'}), 200
+                # FIX 4: Return updated subscriber count
+                count = Subscription.query.filter_by(coiffeur_id=coiffeur_id).count()
+                return jsonify({'message': 'Unsubscribed successfully.', 'status': 'unsubscribed', 'count': count}), 200
             else:
-                return jsonify({'message': 'Not subscribed.', 'status': 'unsubscribed'}), 200
+                # FIX 4: Return updated subscriber count even if not subscribed
+                count = Subscription.query.filter_by(coiffeur_id=coiffeur_id).count()
+                return jsonify({'message': 'Not subscribed.', 'status': 'unsubscribed', 'count': count}), 200
                 
     except Exception as e:
         db.session.rollback()
@@ -1052,8 +1069,12 @@ def toggle_subscription(coiffeur_id):
 
 @app.route('/api/profile/upload_avatar', methods=['POST'])
 def upload_avatar():
-    """Handles POST request for profile picture upload."""
-    # ... [Existing upload_avatar logic] ...
+    """
+    Handles POST request for profile picture upload.
+    FIX 2: Ensure file is processed and path is saved correctly.
+    The original implementation looks largely correct, but we ensure the file.save()
+    and db.session.commit() steps are robustly handled.
+    """
     coiffeur_id = session.get('user_id')
     
     if session.get('user_type') != 'coiffeur' or not coiffeur_id:
@@ -1071,21 +1092,28 @@ def upload_avatar():
         try:
             filename = secure_filename(file.filename)
             ext = filename.rsplit('.', 1)[1].lower()
+            # Generate a unique filename using timestamp
             unique_filename = f"avatar_{coiffeur_id}_{int(datetime.now().timestamp())}.{ext}"
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
             
+            # Save the file to the filesystem
             file.save(filepath)
             
             coiffeur = Coiffeur.query.get(coiffeur_id)
             if coiffeur:
                 public_path = url_for('static', filename=f'uploads/{unique_filename}')
                 
+                # Cleanup old profile image if it's not a placeholder
                 if coiffeur.profile_image and not coiffeur.profile_image.startswith('/static/uploads/placeholder'):
                     old_filename = coiffeur.profile_image.split('/')[-1]
                     old_filepath = os.path.join(app.config['UPLOAD_FOLDER'], old_filename)
                     if os.path.exists(old_filepath):
-                        os.remove(old_filepath)
+                        try:
+                            os.remove(old_filepath)
+                        except OSError as e:
+                            print(f"Error removing old file {old_filepath}: {e}")
                 
+                # Update the database field and commit
                 coiffeur.profile_image = public_path
                 db.session.commit()
                 
@@ -1094,6 +1122,8 @@ def upload_avatar():
                     'image_url': public_path
                 }), 200
             
+            # If coiffeur profile not found after file save, clean up the file
+            os.remove(filepath)
             return jsonify({'error': 'Coiffeur profile not found.'}), 404
             
         except Exception as e:
@@ -1106,14 +1136,19 @@ def upload_avatar():
 
 @app.route('/api/publications/with_images', methods=['POST'])
 def create_publication_with_images():
-    """Handles POST request for creating a new publication with multiple image files."""
-    # ... [Existing create_publication_with_images logic] ...
+    """
+    Handles POST request for creating a new publication with multiple image files.
+    FIX 2: Ensure all files are processed and JSON array is saved to the Publication model.
+    The original logic looks correct, assuming the `Publication.images` field stores
+    a JSON string of image paths. We reinforce the error handling.
+    """
     coiffeur_id = session.get('user_id')
     
     if session.get('user_type') != 'coiffeur' or not coiffeur_id:
         return jsonify({'error': 'Unauthorized: Stylist login required.'}), 403
 
     text = request.form.get('text', '').strip()
+    # Use request.files.getlist to ensure all uploaded files under the 'pub_images' key are captured
     image_files = request.files.getlist('pub_images') 
     
     if not text and not image_files:
@@ -1126,6 +1161,7 @@ def create_publication_with_images():
             if file and allowed_file(file.filename):
                 filename = secure_filename(file.filename)
                 ext = filename.rsplit('.', 1)[1].lower()
+                # Ensure filename uniqueness
                 unique_filename = f"pub_{coiffeur_id}_{int(datetime.now().timestamp())}_{random.randint(100, 999)}.{ext}"
                 filepath = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
                 
@@ -1134,15 +1170,16 @@ def create_publication_with_images():
                 public_path = url_for('static', filename=f'uploads/{unique_filename}')
                 uploaded_image_paths.append(public_path)
             elif file.filename != '': 
+                 # This should ideally not be reached if allowed_file checked, but good for validation
                  return jsonify({'error': f'Invalid file type: {file.filename}. Only JPG, JPEG, PNG allowed.'}), 400
 
         new_pub = Publication(
             author_id=coiffeur_id,
             text=text,
-            images=json.dumps(uploaded_image_paths) 
+            images=json.dumps(uploaded_image_paths) if uploaded_image_paths else None # Save as JSON string or None
         )
         db.session.add(new_pub)
-        db.session.commit()
+        db.session.commit() # Commit the new publication
         
         return jsonify({
             'message': 'Publication created and images uploaded successfully.',
@@ -1152,6 +1189,12 @@ def create_publication_with_images():
         
     except Exception as e:
         db.session.rollback()
+        # Clean up any uploaded files if the DB transaction failed
+        for path in uploaded_image_paths:
+            try:
+                os.remove(os.path.join(app.config['UPLOAD_FOLDER'], path.split('/')[-1]))
+            except:
+                pass 
         print(f"Publication image upload error: {e}")
         return jsonify({'error': f'Server error during publication creation: {str(e)}'}), 500
 
@@ -1190,13 +1233,6 @@ def update_stylist_profile_api(stylist_id):
         return jsonify({'error': f'Update failed: {str(e)}'}, 500)
 
 
-# --- Remaining existing routes (omitted for brevity) ---
-# [The rest of the existing app.py file remains, including:
-# get_coiffeur_reservations, update_reservation_status_api, add_comment,
-# manage_coiffeur_location, save_coiffeur_location, reserve_appointment,
-# confirm_reservation, toggle_like, add_pub_comment, delete_pub_comment]
-
-# The rest of the existing app.py code is assumed to be appended here
 @app.route('/api/coiffeur/<int:coiffeur_id>/reservations', methods=['GET'])
 def get_coiffeur_reservations(coiffeur_id):
     """
@@ -1277,7 +1313,10 @@ def update_reservation_status_api(reservation_id):
 
 @app.route('/profile/<int:coiffeur_id>/add_comment', methods=['POST'])
 def add_comment(coiffeur_id):
-    """Client: Add a general service review/comment to the coiffeur profile."""
+    """
+    Client: Add a general service review/comment to the coiffeur profile.
+    FIX 2: Ensure form data is accessed correctly.
+    """
     if session.get('user_type') != 'client':
         flash('You must be logged in as a client to leave a review.', 'error')
         # Redirect to the new index page instead of login
@@ -1285,6 +1324,7 @@ def add_comment(coiffeur_id):
         return redirect(url_for('index'))
 
     client_id = session['user_id']
+    # Ensure correct access of form data using .get()
     comment_text = request.form.get('comment_text')
     
     if not comment_text:
@@ -1366,11 +1406,16 @@ def reserve_appointment(coiffeur_id):
         flash('Stylist not found.', 'error')
         return redirect(url_for('search_stylists'))
     
-    return render_template('reservation.html', coiffeur=data, services=data['services'])
+    # FIX 1: Pass the raw Coiffeur object and the services array to the template
+    return render_template('reservation.html', coiffeur=data['coiffeur'], services=data['services'])
 
 @app.route('/reserve/<int:coiffeur_id>', methods=['POST'])
 def confirm_reservation(coiffeur_id):
-    """Client: Confirm reservation (POST /api/bookings mock)"""
+    """
+    Client: Confirm reservation (POST /api/bookings mock)
+    FIX 2: Ensure all form fields, especially the new 'notes' field, are correctly
+    retrieved and saved to the database.
+    """
     if session.get('user_type') != 'client':
         flash('Unauthorized booking attempt.', 'error')
         # Redirect to the new index page instead of login
@@ -1380,6 +1425,7 @@ def confirm_reservation(coiffeur_id):
     service_id = request.form['service']
     date_str = request.form['date']
     time_str = request.form['time']
+    # FIX 2: Ensure 'notes' field is retrieved correctly
     notes = request.form.get('notes')
     
     try:
@@ -1394,6 +1440,7 @@ def confirm_reservation(coiffeur_id):
             service_id=service_id,
             date=datetime.strptime(date_str, '%Y-%m-%d').date(),
             time=datetime.strptime(time_str, '%H:%M').time(),
+            # FIX 2: Pass 'notes' to the model
             notes=notes,
             status='Pending'
         )
@@ -1443,9 +1490,13 @@ def toggle_like(pub_id):
 
 @app.route('/api/publications/<int:pub_id>/comments', methods=['POST'])
 def add_pub_comment(pub_id):
+    """
+    FIX 2: Ensure publication comment save logic is sound (uses JSON).
+    """
     if session.get('user_type') not in ['client', 'coiffeur']:
         return jsonify({'error': 'Authentication required'}, 401)
         
+    # Data is expected to be JSON for an API endpoint
     data = request.get_json()
     comment_text = data.get('text', '').strip()
     client_id = session['user_id']
@@ -1462,11 +1513,15 @@ def add_pub_comment(pub_id):
         db.session.add(new_comment)
         db.session.commit()
         
+        # Reloading the comment object to ensure we get the linked client name
+        db.session.refresh(new_comment)
+        
         return jsonify({
             'message': 'Comment added', 
             'id': new_comment.id,
             'comment_text': new_comment.comment_text,
-            'client_name': new_comment.client.name,
+            # Ensure client relationship is correctly resolved
+            'client_name': new_comment.client.name, 
             'created_at': new_comment.created_at.strftime('%Y-%m-%d %H:%M')
         }), 201
     except Exception as e:

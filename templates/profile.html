@@ -50,6 +50,13 @@
                     <svg data-lucide="map-pin" class="w-5 h-5 mr-1"></svg>
                     <span>{{ coiffeur.address }}</span>
                 </div>
+                
+                <!-- FIX 4: Subscriber Count Display (Coiffeur ONLY) -->
+                <div class="flex items-center text-gray-400">
+                    <svg data-lucide="bell" class="w-5 h-5 mr-1 text-hot-pink"></svg>
+                    <span class="text-white font-semibold" id="subscriber-count-display">{{ subscriber_count }}</span>
+                    <span class="ml-1">Subscribers</span>
+                </div>
             </div>
 
             <!-- Action Buttons (Client View) -->
@@ -634,7 +641,7 @@
     
     // --- Existing JS functions (Subscription, Capacity, Uploads, Likes, Comments, Reservations) ---
     
-    // [Existing toggleSubscription function]
+    // FIX 4: Modified toggleSubscription to update the subscriber count display
     async function toggleSubscription(coiffeurId) {
         if (USER_TYPE !== 'client') {
             showToast('You must be logged in as a client to subscribe.', 'error');
@@ -643,6 +650,7 @@
 
         const subscribeBtn = document.getElementById('subscribe-btn');
         const subscribeText = document.getElementById('subscribe-text');
+        const countDisplay = document.getElementById('subscriber-count-display');
         
         subscribeBtn.disabled = true;
         const method = is_subscribed_state ? 'DELETE' : 'POST';
@@ -656,6 +664,11 @@
 
             if (response.ok) {
                 is_subscribed_state = !is_subscribed_state; 
+                
+                // Update the count display
+                if (result.count !== undefined) {
+                    countDisplay.textContent = result.count;
+                }
                 
                 if (is_subscribed_state) {
                     subscribeText.textContent = 'Following';
@@ -939,6 +952,7 @@
         postBtn.textContent = 'Sending...';
 
         try {
+            // FIX 2: Comment submission uses JSON body via API endpoint
             const response = await fetch(`/api/publications/${pubId}/comments`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },

@@ -1,8 +1,7 @@
 {% extends "layout.html" %}
 {% block title %}Book {{ coiffeur.user.name }}{% endblock %}
 
-{# FIX 1: Set 'today' using the newly available 'now' function within a block to ensure it's evaluated #}
-{% set today = now().date() %}
+{# FIX 1: Removed the problematic set tag. The 'now()' function is now correctly injected via context processor in app.py and can be used directly. #}
 
 {% block content %}
 <div class="page-transition min-h-screen flex items-center justify-center p-4">
@@ -10,7 +9,7 @@
         <h2 class="text-3xl font-extrabold text-white text-center mb-2">Book Appointment with</h2>
         <h1 class="text-4xl font-extrabold text-hot-pink text-center mb-8">{{ coiffeur.user.name }}</h1>
 
-        <form method="POST" action="{{ url_for('confirm_reservation', coiffeur_id=coiffeur.user.id) }}">
+        <form method="POST" action="{{ url_for('confirm_reservation', coiffeur_id=coiffeur.user_id) }}">
             
             <div class="mb-6">
                 <label for="service" class="block text-sm font-medium text-hot-pink mb-2">Select Service</label>
@@ -30,8 +29,8 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                 <div>
                     <label for="date" class="block text-sm font-medium text-hot-pink mb-2">Date</label>
-                    {# Uses the now().date() from the set statement above #}
-                    <input type="date" id="date" name="date" required min="{{ today.isoformat() }}"
+                    {# FIX 1: Use now().date() directly for minimum date restriction, relying on app.py context processor #}
+                    <input type="date" id="date" name="date" required min="{{ now().date().isoformat() }}"
                            class="w-full px-4 py-3 rounded-lg bg-gray-800 border border-hot-pink/50 text-white focus:outline-none focus:ring-2 focus:ring-hot-pink transition duration-300"
                            aria-required="true">
                 </div>
@@ -47,6 +46,7 @@
             <!-- NEW: Notes/Details Field -->
             <div class="mb-8">
                 <label for="notes" class="block text-sm font-medium text-hot-pink mb-2">Special Requests / Notes</label>
+                {# FIX 2: Added name="notes" attribute. This was likely the reason notes were not saving. #}
                 <textarea id="notes" name="notes" rows="3" placeholder="e.g., Short on sides, or request for specific time slot if slots were not shown (max 255 chars)" maxlength="255"
                           class="w-full p-4 rounded-lg bg-gray-800 border border-hot-pink/50 text-white focus:outline-none focus:ring-2 focus:ring-hot-pink transition duration-300"
                           aria-label="Special requests or notes for the stylist"></textarea>

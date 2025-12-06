@@ -3,67 +3,171 @@
 {% block content %}
 <div class="page-transition min-h-screen flex items-center justify-center p-4">
     <div class="glass-card p-8 md:p-12 w-full max-w-2xl rounded-2xl">
-        <h2 class="text-3xl font-extrabold text-white text-center mb-8">Create Your Coiffeur Profile</h2>
-        <form method="POST" action="{{ url_for('signup_coiffeur') }}">
+        <h2 class="text-3xl font-extrabold text-white text-center mb-8">Create Your Coiffeur Profile (Step <span id="current-step-display">1</span>/5)</h2>
+        
+        <!-- The form MUST wrap the entire process and include the file upload enctype -->
+        <form id="coiffeur-signup-form" method="POST" action="{{ url_for('signup_coiffeur') }}" enctype="multipart/form-data">
             
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <!-- Col 1 -->
-                <div>
-                    <label for="name" class="block text-sm font-medium text-hot-pink mb-2">Full Name</label>
-                    <input type="text" id="name" name="name" required
-                           class="w-full px-4 py-3 rounded-lg bg-gray-800 border border-hot-pink/50 text-white focus:outline-none focus:ring-2 focus:ring-hot-pink transition duration-300"
-                           placeholder="Jules Vernes">
+            <!-- Hidden inputs to carry data from step to step -->
+            <input type="hidden" name="name" id="hidden-name">
+            <input type="hidden" name="email" id="hidden-email">
+            <input type="hidden" name="password" id="hidden-password">
+            <input type="hidden" name="phone" id="hidden-phone">
+            <input type="hidden" name="city" id="hidden-city">
+            <input type="hidden" name="category" id="hidden-category">
+            <input type="hidden" name="address" id="hidden-address">
+            <input type="hidden" name="description" id="hidden-description">
+
+            <!-- Step 1: Name and Contact (Mandatory fields) -->
+            <div class="step" id="step-1">
+                <h3 class="text-xl font-semibold text-hot-pink mb-4">1. Personal Details</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div>
+                        <label for="input-name" class="block text-sm font-medium text-hot-pink mb-2">Full Name</label>
+                        <input type="text" id="input-name" required
+                               class="w-full px-4 py-3 rounded-lg bg-gray-800 border border-hot-pink/50 text-white focus:outline-none focus:ring-2 focus:ring-hot-pink transition duration-300"
+                               placeholder="Jules Vernes">
+                    </div>
+                    <div>
+                        <label for="input-email" class="block text-sm font-medium text-hot-pink mb-2">Email Address</label>
+                        <input type="email" id="input-email" required
+                               class="w-full px-4 py-3 rounded-lg bg-gray-800 border border-hot-pink/50 text-white focus:outline-none focus:ring-2 focus:ring-hot-pink transition duration-300"
+                               placeholder="jules@coiffeur.com">
+                    </div>
                 </div>
-                <div>
-                    <label for="email" class="block text-sm font-medium text-hot-pink mb-2">Email Address</label>
-                    <input type="email" id="email" name="email" required
+                <div class="mb-6">
+                    <label for="input-phone" class="block text-sm font-medium text-hot-pink mb-2">Phone Number</label>
+                    <input type="tel" id="input-phone" required
                            class="w-full px-4 py-3 rounded-lg bg-gray-800 border border-hot-pink/50 text-white focus:outline-none focus:ring-2 focus:ring-hot-pink transition duration-300"
-                           placeholder="jules@coiffeur.com">
+                           placeholder="06 XX XX XX XX">
                 </div>
-            </div>
-            
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <div>
-                    <label for="city" class="block text-sm font-medium text-hot-pink mb-2">City</label>
-                    <input type="text" id="city" name="city" required
-                           class="w-full px-4 py-3 rounded-lg bg-gray-800 border border-hot-pink/50 text-white focus:outline-none focus:ring-2 focus:ring-hot-pink transition duration-300"
-                           placeholder="Paris">
-                </div>
-                <div>
-                    <label for="category" class="block text-sm font-medium text-hot-pink mb-2">Specialty Category</label>
-                    <select id="category" name="category" required
-                            class="w-full px-4 py-3 rounded-lg bg-gray-800 border border-hot-pink/50 text-white focus:outline-none focus:ring-2 focus:ring-hot-pink transition duration-300">
-                        <option value="Femme" class="bg-gray-800">Coiffeure Femme</option>
-                        <option value="Homme" class="bg-gray-800">Coiffeure Homme</option>
-                        <option value="Déplacé" class="bg-gray-800">Coiffeure Déplacé (Mobile)</option>
-                    </select>
+                <div class="flex justify-end">
+                    <button type="button" onclick="nextStep(1)" class="cta-button bg-hot-pink text-white font-bold py-3 px-6 rounded-full text-lg hover:bg-pink-700 transition duration-300">
+                        Continue
+                    </button>
                 </div>
             </div>
 
-            <div class="mb-6">
-                <label for="address" class="block text-sm font-medium text-hot-pink mb-2">Salon Address / Service Area</label>
-                <input type="text" id="address" name="address" required
-                       class="w-full px-4 py-3 rounded-lg bg-gray-800 border border-hot-pink/50 text-white focus:outline-none focus:ring-2 focus:ring-hot-pink transition duration-300"
-                       placeholder="14 Rue de la Paix, Paris (or Mobile Stylist)">
-            </div>
-            
-            <div class="mb-6">
-                <label for="description" class="block text-sm font-medium text-hot-pink mb-2">Short Professional Description</label>
-                <textarea id="description" name="description" rows="3" required
-                          class="w-full px-4 py-3 rounded-lg bg-gray-800 border border-hot-pink/50 text-white focus:outline-none focus:ring-2 focus:ring-hot-pink transition duration-300"
-                          placeholder="Expert in balayage and wedding updos..."></textarea>
-            </div>
-            
-            <div class="mb-8">
-                <label for="password" class="block text-sm font-medium text-hot-pink mb-2">Password</label>
-                <input type="password" id="password" name="password" required
-                       class="w-full px-4 py-3 rounded-lg bg-gray-800 border border-hot-pink/50 text-white focus:outline-none focus:ring-2 focus:ring-hot-pink transition duration-300"
-                       placeholder="••••••••">
+            <!-- Step 2: Account Security (Mandatory fields) -->
+            <div class="step hidden" id="step-2">
+                <h3 class="text-xl font-semibold text-hot-pink mb-4">2. Account Security</h3>
+                <div class="mb-8">
+                    <label for="input-password" class="block text-sm font-medium text-hot-pink mb-2">Password</label>
+                    <input type="password" id="input-password" required minlength="6"
+                           class="w-full px-4 py-3 rounded-lg bg-gray-800 border border-hot-pink/50 text-white focus:outline-none focus:ring-2 focus:ring-hot-pink transition duration-300"
+                           placeholder="••••••••">
+                </div>
+                <div class="flex justify-between">
+                    <button type="button" onclick="prevStep(2)" class="text-gray-400 hover:text-white transition duration-300">
+                        &larr; Back
+                    </button>
+                    <button type="button" onclick="nextStep(2)" class="cta-button bg-hot-pink text-white font-bold py-3 px-6 rounded-full text-lg hover:bg-pink-700 transition duration-300">
+                        Continue
+                    </button>
+                </div>
             </div>
 
-            <button type="submit" class="cta-button w-full bg-hot-pink text-white font-bold py-3 rounded-full text-lg hover:bg-pink-700">
-                Create Profile & Start Service
-            </button>
+            <!-- Step 3: Location and Specialty (Mandatory fields) -->
+            <div class="step hidden" id="step-3">
+                <h3 class="text-xl font-semibold text-hot-pink mb-4">3. Location & Specialty</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div>
+                        <label for="input-city" class="block text-sm font-medium text-hot-pink mb-2">City</label>
+                        <input type="text" id="input-city" required
+                               class="w-full px-4 py-3 rounded-lg bg-gray-800 border border-hot-pink/50 text-white focus:outline-none focus:ring-2 focus:ring-hot-pink transition duration-300"
+                               placeholder="Paris">
+                    </div>
+                    <div>
+                        <label for="input-category" class="block text-sm font-medium text-hot-pink mb-2">Specialty Category</label>
+                        <select id="input-category" required
+                                class="w-full px-4 py-3 rounded-lg bg-gray-800 border border-hot-pink/50 text-white focus:outline-none focus:ring-2 focus:ring-hot-pink transition duration-300">
+                            <option value="Femme" class="bg-gray-800">Coiffeure Femme</option>
+                            <option value="Homme" class="bg-gray-800">Coiffeure Homme</option>
+                            <option value="Déplacé" class="bg-gray-800">Coiffeure Déplacé (Mobile)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="mb-6">
+                    <label for="input-address" class="block text-sm font-medium text-hot-pink mb-2">Salon Address / Service Area</label>
+                    <input type="text" id="input-address" required
+                           class="w-full px-4 py-3 rounded-lg bg-gray-800 border border-hot-pink/50 text-white focus:outline-none focus:ring-2 focus:ring-hot-pink transition duration-300"
+                           placeholder="14 Rue de la Paix, Paris (or Mobile Stylist)">
+                </div>
+                <div class="flex justify-between">
+                    <button type="button" onclick="prevStep(3)" class="text-gray-400 hover:text-white transition duration-300">
+                        &larr; Back
+                    </button>
+                    <button type="button" onclick="nextStep(3)" class="cta-button bg-hot-pink text-white font-bold py-3 px-6 rounded-full text-lg hover:bg-pink-700 transition duration-300">
+                        Continue
+                    </button>
+                </div>
+            </div>
+
+            <!-- Step 4: Description (Mandatory fields) -->
+            <div class="step hidden" id="step-4">
+                <h3 class="text-xl font-semibold text-hot-pink mb-4">4. Professional Description</h3>
+                <div class="mb-6">
+                    <label for="input-description" class="block text-sm font-medium text-hot-pink mb-2">Short Professional Description</label>
+                    <textarea id="input-description" required rows="3"
+                              class="w-full px-4 py-3 rounded-lg bg-gray-800 border border-hot-pink/50 text-white focus:outline-none focus:ring-2 focus:ring-hot-pink transition duration-300"
+                              placeholder="Expert in balayage and wedding updos..."></textarea>
+                </div>
+                <div class="flex justify-between">
+                    <button type="button" onclick="prevStep(4)" class="text-gray-400 hover:text-white transition duration-300">
+                        &larr; Back
+                    </button>
+                    <button type="button" onclick="nextStep(4)" class="cta-button bg-hot-pink text-white font-bold py-3 px-6 rounded-full text-lg hover:bg-pink-700 transition duration-300">
+                        Continue to Payment
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Step 5: Payment (Final Step - Mandatory fields for payment proof) -->
+            <div class="step hidden" id="step-5">
+                <h3 class="text-xl font-semibold text-hot-pink mb-4">5. Activation Payment & Free Trial</h3>
+                <!-- FIX 2: Update messaging for Free Trial -->
+                <p class="text-green-400 font-bold mb-4 bg-gray-800/50 p-3 rounded-lg border border-green-500/30">
+                    🎉 You get a 1-MONTH FREE TRIAL! Your account will be activated immediately after email confirmation.
+                </p>
+                <p class="text-gray-300 mb-6">
+                    To continue service after your trial expires, a one-time activation fee is required via bank transfer (virement). Please submit your payment proof now or during your trial period.
+                </p>
+                
+                <!-- CIH RIB Details -->
+                <div class="bg-gray-700/50 p-4 rounded-lg mb-6 border border-hot-pink/30">
+                    <p class="text-sm font-medium text-white mb-2">ATTIJARIWAFA BANK RIB (Virement)</p>
+                    <p class="text-2xl font-mono text-hot-pink break-all">
+                        007 810 0001065300400111 14
+                    </p>
+                </div>
+
+                <!-- Payer Name -->
+                <div class="mb-6">
+                    <label for="virement_name" class="block text-sm font-medium text-hot-pink mb-2">Exact Full Name of the Person who made the Virement</label>
+                    <input type="text" id="virement_name" name="virement_name" 
+                           class="w-full px-4 py-3 rounded-lg bg-gray-800 border border-hot-pink/50 text-white focus:outline-none focus:ring-2 focus:ring-hot-pink transition duration-300"
+                           placeholder="As written on the bank transfer (Optional during trial)">
+                </div>
+                
+                <!-- Virement Proof Upload -->
+                <div class="mb-8">
+                    <label for="virement_proof" class="block text-sm font-medium text-hot-pink mb-2">Virement Proof Image (Receipt/Screenshot)</label>
+                    <input type="file" id="virement_proof" name="virement_proof" accept="image/png, image/jpeg, image/jpg"
+                           class="w-full text-white file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-hot-pink/20 file:text-hot-pink hover:file:bg-hot-pink/30 cursor-pointer">
+                    <p class="mt-1 text-xs text-gray-400">Accepted formats: JPG, JPEG, PNG. (Optional now due to Free Trial)</p>
+                </div>
+
+                <div class="flex justify-between">
+                    <button type="button" onclick="prevStep(5)" class="text-gray-400 hover:text-white transition duration-300">
+                        &larr; Back
+                    </button>
+                    <!-- Final Submission Button -->
+                    <button type="submit" class="cta-button bg-green-500 text-white font-bold py-3 px-6 rounded-full text-lg hover:bg-green-600 transition duration-300">
+                        Submit Profile & Start Trial
+                    </button>
+                </div>
+            </div>
+
         </form>
         
         <p class="text-center text-gray-400 mt-6">
@@ -72,4 +176,109 @@
         </p>
     </div>
 </div>
+
+<script>
+    let currentStep = 1;
+    const totalSteps = 5;
+    const steps = document.querySelectorAll('.step');
+    const display = document.getElementById('current-step-display');
+    
+    function updateStepDisplay(newStep) {
+        steps.forEach((step, index) => {
+            // Use opacity for smoother transition effect (visually hidden is faster)
+            step.classList.toggle('hidden', index + 1 !== newStep);
+        });
+        display.textContent = newStep;
+        currentStep = newStep;
+    }
+
+    function validateStep(stepIndex) {
+        let isValid = true;
+        let fields = [];
+
+        switch (stepIndex) {
+            case 1:
+                fields = ['input-name', 'input-email', 'input-phone'];
+                break;
+            case 2:
+                fields = ['input-password'];
+                break;
+            case 3:
+                fields = ['input-city', 'input-category', 'input-address'];
+                break;
+            case 4:
+                fields = ['input-description'];
+                break;
+            case 5:
+                // FIX 2: Virement proof and name are NOT strictly required for submission 
+                // due to the free trial logic, only optional validation.
+                // We rely on backend (Flask) to handle missing fields gracefully now.
+                const nameInput = document.getElementById('virement_name');
+                if (nameInput && nameInput.value.trim() === '') {
+                    // Optional warning for better data collection, but not blocking submit
+                    // nameInput.reportValidity(); 
+                    // isValid = false;
+                }
+                break;
+        }
+
+        fields.forEach(id => {
+            const input = document.getElementById(id);
+            if (input && !input.checkValidity()) {
+                isValid = false;
+                input.reportValidity(); // Show native browser error message
+            }
+        });
+
+        // Additional check for email uniqueness/format if needed (backend will do final check)
+        
+        return isValid;
+    }
+    
+    function copyToHiddenFields() {
+        // Collect all data from visible fields and populate hidden fields for final submission
+        document.getElementById('hidden-name').value = document.getElementById('input-name').value;
+        document.getElementById('hidden-email').value = document.getElementById('input-email').value;
+        document.getElementById('hidden-password').value = document.getElementById('input-password').value;
+        document.getElementById('hidden-phone').value = document.getElementById('input-phone').value;
+        document.getElementById('hidden-city').value = document.getElementById('input-city').value;
+        
+        // Handle select value specifically
+        const categorySelect = document.getElementById('input-category');
+        document.getElementById('hidden-category').value = categorySelect.value;
+        
+        document.getElementById('hidden-address').value = document.getElementById('input-address').value;
+        document.getElementById('hidden-description').value = document.getElementById('input-description').value;
+        
+        // Note: The virement_name and virement_proof fields are direct inputs 
+        // in the main form (step-5) so they don't need hidden fields.
+    }
+
+    function nextStep(stepIndex) {
+        if (validateStep(stepIndex)) {
+            // Copy data to hidden fields before moving on to ensure all data is available
+            copyToHiddenFields();
+            
+            if (stepIndex < totalSteps) {
+                updateStepDisplay(stepIndex + 1);
+            }
+        }
+    }
+
+    function prevStep(stepIndex) {
+        if (stepIndex > 1) {
+            updateStepDisplay(stepIndex - 1);
+        }
+    }
+    
+    // Initial display
+    updateStepDisplay(currentStep);
+
+</script>
+<style>
+    /* Styling for the file input to make it look decent */
+    input[type="file"]::file-selector-button {
+        cursor: pointer;
+    }
+</style>
 {% endblock %}

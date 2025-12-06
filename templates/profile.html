@@ -12,8 +12,15 @@
         
         <!-- Profile Image Upload Section -->
         <div class="flex-shrink-0 w-32 h-32 md:w-48 md:h-48 rounded-full overflow-hidden border-4 border-hot-pink shadow-pink-glow relative group">
+            {% set default_avatar_map = {
+                'Homme': url_for('static', filename='avatar/man.png'),
+                'Femme': url_for('static', filename='avatar/woman.png'),
+                'Déplacé': url_for('static', filename='avatar/dep.png')
+            } %}
+            {% set default_path = default_avatar_map.get(coiffeur.category, url_for('static', filename='uploads/default_coiffeur.png')) %}
+            
             <img id="profile-img" 
-                 src="{{ coiffeur.profile_image if coiffeur.profile_image else 'https://placehold.co/200x200/111/FF69B4?text=' + user.name[0] }}" 
+                 src="{{ coiffeur.profile_image if coiffeur.profile_image else default_path }}" 
                  alt="{{ user.name }}'s profile picture" class="w-full h-full object-cover">
             
             {% if is_owner %}
@@ -314,7 +321,7 @@
                         <div class="flex items-center justify-between">
                             <div class="flex items-center space-x-3">
                                 <div class="w-10 h-10 rounded-full overflow-hidden border border-gray-700">
-                                    <img src="{{ coiffeur.profile_image if coiffeur.profile_image else 'https://placehold.co/40x40/111/FF69B4?text=' + user.name[0] }}" alt="{{ user.name }}" class="w-full h-full object-cover">
+                                    <img src="{{ coiffeur.profile_image if coiffeur.profile_image else default_path }}" alt="{{ user.name }}" class="w-full h-full object-cover">
                                 </div>
                                 <div>
                                     <p class="text-white font-semibold">{{ user.name }}</p>
@@ -388,7 +395,7 @@
                                     {% set commenter_avatar = comment_tuple[2] %}
                                 <div id="comment-{{ comment.id }}" class="flex items-start space-x-3 text-sm">
                                     <div class="w-7 h-7 rounded-full overflow-hidden flex-shrink-0">
-                                        <img src="https://placehold.co/30x30/333/FFF?text={{ commenter_name[0] }}" alt="{{ commenter_name }}" class="w-full h-full object-cover">
+                                        <img src="{% if commenter_avatar %}{{ commenter_avatar }}{% else %}{{ default_avatar_map.get(coiffeur.category, url_for('static', filename='uploads/default_coiffeur.png')) }}{% endif %}" alt="{{ commenter_name }}" class="w-full h-full object-cover">
                                     </div>
                                     <div class="flex-grow bg-gray-800 p-3 rounded-xl">
                                         <div class="flex justify-between items-center">

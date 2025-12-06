@@ -1,0 +1,107 @@
+{% extends "layout.html" %}
+{% block title %}Verify Code{% endblock %}
+{% block content %}
+
+<div class="page-transition min-h-screen flex items-center justify-center p-4">
+<div class="glass-card p-8 md:p-12 w-full max-w-md rounded-2xl">
+<h2 class="text-3xl font-extrabold text-white text-center mb-4">Verify Reset Code</h2>
+<p class="text-gray-400 text-center mb-8">
+Enter the 6-digit code sent to: <span class="font-semibold text-hot-pink">{{ reset_email or 'your email' }}</span>
+</p>
+
+    <!-- FIX 1: Action points to the correct verification API endpoint -->
+    <form id="verifyForm" method="POST" action="{{ url_for('verify_reset_code') }}">
+        <div class="flex justify-center space-x-2 sm:space-x-3 mb-8" id="code-inputs">
+            {% for i in range(1, 7) %}
+            <input type="number" 
+                    id="digit{{ i }}" 
+                    name="digit{{ i }}" 
+                    maxlength="1" 
+                    required
+                    class="w-10 h-14 sm:w-12 sm:h-16 text-center text-2xl font-bold rounded-lg bg-gray-700 border border-hot-pink/50 text-white focus:outline-none focus:ring-2 focus:ring-hot-pink focus:border-hot-pink transition duration-300 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    pattern="\d" 
+                    autocomplete="off"
+                    data-index="{{ i }}"
+                    aria-label="Digit {{ i }}">
+            {% endfor %}
+        </div>
+        
+        <!-- This hidden input is crucial for sending the combined 6-digit code to Flask -->
+        <input type="hidden" name="confirmation_code" id="confirmation_code_hidden">
+
+        <button type="submit" id="submitButton" disabled class="cta-button w-full bg-hot-pink text-white font-bold py-3 rounded-full text-lg opacity-50 cursor-not-allowed">
+            Verify Code
+        </button>
+    </form>
+    
+    <p class="text-center text-gray-400 mt-6">
+        <!-- Assume resend code links back to forgot_password route -->
+        <a href="{{ url_for('forgot_password') }}" class="text-hot-pink hover:text-white font-semibold transition duration-300">Resend Code</a>
+    </p>
+</div>
+
+
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+const inputs = document.querySelectorAll('#code-inputs input[type="number"]');
+const submitButton = document.getElementById('submitButton');
+const hiddenInput = document.getElementById('confirmation_code_hidden');
+const form = document.getElementById('verifyForm');
+
+    // Function to check if all inputs are filled and enable the submit button
+    function checkInputs() {
+        let allFilled = true;
+        let code = '';
+        inputs.forEach(input => {
+            if (input.value.length !== 1) {
+                allFilled = false;
+            }
+            code += input.value;
+        });
+        
+        if (allFilled) {
+            submitButton.disabled = false;
+            submitButton.classList.remove('opacity-50', 'cursor-not-allowed');
+            submitButton.classList.add('hover:bg-pink-700');
+            hiddenInput.value = code; // Set the combined code for form submission (CRITICAL FIX)
+        } else {
+            submitButton.disabled = true;
+            submitButton.classList.add('opacity-50', 'cursor-not-allowed');
+            submitButton.classList.remove('hover:bg-pink-700');
+            hiddenInput.value = '';
+        }
+    }
+
+    inputs.forEach((input, index) => {
+        // Auto-tab and input filtering
+        input.addEventListener('input', (e) => {
+            // Ensure only one digit is entered
+            if (input.value.length > 1) {
+                input.value = input.value.slice(0, 1);
+            }
+            
+            checkInputs();
+
+            // Move to the next input field if a digit was entered
+            if (input.value.length === 1 && index < inputs.length - 1) {
+                inputs[index + 1].focus();
+            }
+        });
+
+        // Handle backspace to move to previous field
+        input.addEventListener('keydown', (e) => {
+            // If backspace is pressed and the field is empty, move to the previous field
+            if (e.key === 'Backspace' && input.value.length === 0 && index > 0) {
+                inputs[index - 1].focus();
+            }
+        });
+    });
+    
+    // Initial check in case of browser autofill
+    checkInputs();
+});
+</script>
+
+{% endblock %}

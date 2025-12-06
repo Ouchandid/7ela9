@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confirm Your Account</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        
+        /* Pink and Black Theme Variables */
+        :root {
+            --primary-pink: #FF69B4; /* Deep Pink */
+            --dark-background: #1a1a1a; /* Very Dark Gray/Black */
+            --card-background: #282828; /* Slightly lighter dark for card */
+            --text-light: #f3f4f6; /* Gray-100 */
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--dark-background); /* Dark background */
+        }
+        .code-input {
+            width: 4rem; /* Larger and fixed width for mobile visibility */
+            height: 4rem;
+            text-align: center;
+            font-size: 1.5rem;
+            font-weight: 700;
+            border-width: 2px;
+            border-color: #4b5563; /* Gray-600 border */
+            background-color: #374151; /* Gray-700 input background */
+            color: var(--text-light);
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.2);
+        }
+        .code-input:focus {
+            border-color: var(--primary-pink); /* Pink focus border */
+            box-shadow: 0 0 0 3px rgba(255, 105, 180, 0.5); /* Pink shadow */
+            outline: none;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+    <div class="w-full max-w-lg bg-[var(--card-background)] p-8 rounded-xl shadow-2xl text-[var(--text-light)]">
+        <h2 class="text-3xl font-bold mb-4 text-center text-white">Account Confirmation</h2>
+        <p class="mb-6 text-center text-gray-300">
+            We sent a 6-digit verification code to your email. Please enter it below to activate your account.
+        </p>
+
+        <!-- Flash Messages Display -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <ul class="mb-4 space-y-2">
+                {% for category, message in messages %}
+                    <li class="p-3 text-sm rounded-lg shadow-md 
+                        {% if category == 'error' or category == 'warning' %}bg-red-900 text-red-300{% elif category == 'success' %}bg-green-900 text-green-300{% else %}bg-blue-900 text-blue-300{% endif %}">
+                        {{ message }}
+                    </li>
+                {% endfor %}
+                </ul>
+            {% endif %}
+        {% endwith %}
+        <!-- End Flash Messages -->
+
+        <form id="confirmationForm" method="POST" action="{{ url_for('confirm_email') }}">
+            <!-- Hidden input to hold the combined 6-digit code -->
+            <input type="hidden" name="confirmation_code" id="confirmation_code">
+            
+            <div class="flex justify-center space-x-2 sm:space-x-3 mb-8" id="inputContainer">
+                {% for i in range(6) %}
+                    <input 
+                        type="text" 
+                        class="code-input rounded-xl border-gray-600 focus:ring-[var(--primary-pink)] focus:border-[var(--primary-pink)]" 
+                        maxlength="1" 
+                        inputmode="numeric"
+                        pattern="[0-9]"
+                        id="digit-{{ i }}"
+                        required
+                    >
+                {% endfor %}
+            </div>
+
+            <button type="submit" id="submitButton" disabled class="w-full py-3 text-white font-semibold rounded-xl transition duration-300 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed shadow-lg 
+            bg-pink-600 hover:bg-pink-700 disabled:bg-gray-700 disabled:hover:bg-gray-700">
+                Verify Code
+            </button>
+        </form>
+
+        <p class="text-center text-sm mt-6">
+            <a href="{{ url_for('logout') }}" class="text-[var(--primary-pink)] hover:text-pink-400 font-medium">Log out and try again</a>
+        </p>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const inputs = document.querySelectorAll('.code-input');
+            const hiddenInput = document.getElementById('confirmation_code');
+            const submitButton = document.getElementById('submitButton');
+            const form = document.getElementById('confirmationForm');
+
+            // Function to check if all inputs are filled and enable the button
+            const checkInputs = () => {
+                let allFilled = true;
+                let code = '';
+                inputs.forEach(input => {
+                    if (input.value.length !== 1) {
+                        allFilled = false;
+                    }
+                    code += input.value;
+                });
+                
+                hiddenInput.value = code;
+                submitButton.disabled = !allFilled;
+                
+                // Toggle active/disabled button classes for the pink/black theme
+                if (allFilled) {
+                    submitButton.classList.remove('bg-gray-700', 'hover:bg-gray-700');
+                    submitButton.classList.add('bg-pink-600', 'hover:bg-pink-700');
+                } else {
+                    submitButton.classList.remove('bg-pink-600', 'hover:bg-pink-700');
+                    submitButton.classList.add('bg-gray-700', 'hover:bg-gray-700');
+                }
+            };
+
+            inputs.forEach((input, index) => {
+                input.addEventListener('input', (e) => {
+                    // Only allow single digits
+                    const value = e.target.value.replace(/[^0-9]/g, '');
+                    e.target.value = value.substring(0, 1);
+                    
+                    if (value.length === 1 && index < inputs.length - 1) {
+                        // Move focus to the next input
+                        inputs[index + 1].focus();
+                    }
+                    checkInputs();
+                });
+
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Backspace' && input.value.length === 0 && index > 0) {
+                        // Move focus to the previous input on empty backspace
+                        inputs[index - 1].focus();
+                    }
+                });
+
+                input.addEventListener('focus', () => {
+                    // Select the content on focus for easy replacement
+                    input.select();
+                });
+            });
+            
+            // Final check on load
+            checkInputs();
+        });
+    </script>
+</body>
+</html>

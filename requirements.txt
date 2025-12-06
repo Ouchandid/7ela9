@@ -1,5 +1,6 @@
 Flask==2.3.3
 Flask-SQLAlchemy==3.0.5
+Flask-Mail
 SQLAlchemy==2.0.19
 Werkzeug==2.3.7
 PyMySQL==1.1.1

@@ -4,7 +4,7 @@ import json
 import math
 from datetime import datetime, timedelta
 # Import secrets for token generation and mail sending mock
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, g
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.utils import secure_filename
 from sqlalchemy import func, event
@@ -54,6 +54,65 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
 
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
+
+# --- NEW: I18n Setup ---
+TRANSLATIONS = {}
+# EDITED: Added 'en' to LANGUAGES
+LANGUAGES = ['fr', 'es', 'ar', 'amazigh', 'en']
+# EDITED: Changed DEFAULT_LANGUAGE to 'en'
+DEFAULT_LANGUAGE = 'en'
+TRANSLATIONS_PATH = os.path.join(app.root_path, 'translations')
+
+def load_translations():
+    """Loads all translation JSON files into the TRANSLATIONS dictionary."""
+    if not os.path.exists(TRANSLATIONS_PATH):
+        print(f"ERROR: Translations directory not found at {TRANSLATIONS_PATH}")
+        return
+
+    for lang_code in LANGUAGES:
+        filepath = os.path.join(TRANSLATIONS_PATH, f'{lang_code}.json')
+        try:
+            with open(filepath, 'r', encoding='utf-8') as f:
+                TRANSLATIONS[lang_code] = json.load(f)
+        except FileNotFoundError:
+            print(f"Warning: Translation file {filepath} not found.")
+        except json.JSONDecodeError:
+            print(f"Error: Invalid JSON in {filepath}")
+
+# Load translations immediately after startup
+load_translations()
+
+def get_locale():
+    """Determines the current locale from session or defaults."""
+    # Priority: 1. User selector (session), 2. Default
+    return session.get('language', DEFAULT_LANGUAGE)
+
+def translate(key, lang_code=None):
+    """Translates a key into the specified or current language."""
+    lang = lang_code or get_locale()
+    
+    # Fallback to English/Default if the language is not loaded or key is missing
+    return TRANSLATIONS.get(lang, {}).get(key, key)
+
+@app.before_request
+def before_request():
+    """Set the translation function on the global object 'g' for templates."""
+    g.locale = get_locale()
+    g._ = lambda key: translate(key, g.locale)
+
+@app.context_processor
+def inject_i18n():
+    """Make the translation function and current language available to all templates."""
+    return dict(_=translate, current_language=g.locale, available_languages=LANGUAGES)
+
+@app.route('/set_language/<lang_code>')
+def set_language(lang_code):
+    """Route to set the user's preferred language and redirect back."""
+    if lang_code in LANGUAGES:
+        session['language'] = lang_code
+    return redirect(request.referrer or url_for('index'))
+# --- END NEW: I18n Setup ---
+
 
 # --- Utility for File Upload Validation ---
 def allowed_file(filename):
@@ -542,7 +601,14 @@ def get_current_user():
 @app.context_processor
 def inject_user():
     # FIX 1: Provide datetime.now() for reservation.html date calculations
-    return dict(current_user=get_current_user(), now=datetime.now)
+    # MODIFIED: Also inject i18n functions
+    return dict(
+        current_user=get_current_user(), 
+        now=datetime.now, 
+        _=translate, 
+        current_language=get_locale(), 
+        available_languages=LANGUAGES
+    )
 
 
 # --- MODIFIED: 1. HOME PAGE LOGIC (unchanged) ---
@@ -1286,7 +1352,7 @@ def stylist_map_view():
     Client-facing map view to show nearby stylists.
     """
     if not is_logged_in() or session['user_type'] != 'client':
-        flash('Please log in as a client to view the map.', 'error')
+        flash('You must be logged in as a client to view the map.', 'error')
         # Redirect to the new index page instead of login
         session['redirect_after_login'] = url_for('stylist_map_view')
         return redirect(url_for('index'))

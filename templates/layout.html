@@ -1,7 +1,8 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ current_language }}">
 <head>
     <meta charset="UTF-8">
+    <!-- REQUIRED for Mobile Responsiveness -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>7ELA9.com - {% block title %}{% endblock %}</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -62,6 +63,20 @@
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
         }
+
+        /* Responsive adjustments for smaller screens */
+        @media (max-width: 768px) {
+            header, nav, footer, .container-fluid {
+                padding-left: 10px !important; /* Ensure minimal padding on edges */
+                padding-right: 10px !important;
+                text-align: center;
+            }
+
+            img, video {
+                max-width: 100%;
+                height: auto;
+            }
+        }
     </style>
 {% block head %}{% endblock %}
 </head>
@@ -71,20 +86,33 @@
             <div class="container mx-auto flex justify-between items-center">
                 <a href="{{ url_for('index') }}" class="text-2xl font-bold text-hot-pink tracking-widest hover:text-white transition duration-300">7ELA9.<span class="text-white">com</span></a>
                 <div class="hidden md:flex space-x-8 items-center">
-                    <a href="{{ url_for('index') }}" class="text-gray-300 hover:text-hot-pink transition duration-300">Home</a>
-                    <a href="{{ url_for('search_stylists') }}" class="text-gray-300 hover:text-hot-pink transition duration-300">Browse Stylists</a>
+                    <!-- Language Selector (Dropdown) -->
+                    <div class="relative">
+                        <select onchange="window.location.href = this.value" 
+                                class="bg-gray-800 text-sm text-gray-300 py-1 px-2 rounded-lg border border-hot-pink/30 cursor-pointer focus:ring-hot-pink focus:border-hot-pink appearance-none">
+                            {% for lang_code in available_languages %}
+                                <option value="{{ url_for('set_language', lang_code=lang_code) }}" 
+                                        {% if lang_code == current_language %}selected{% endif %}>
+                                    {{ _(lang_code.upper() ~ '_LABEL') }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <a href="{{ url_for('index') }}" class="text-gray-300 hover:text-hot-pink transition duration-300">{{ _('HOME') }}</a>
+                    <a href="{{ url_for('search_stylists') }}" class="text-gray-300 hover:text-hot-pink transition duration-300">{{ _('BROWSE_STYLISTS') }}</a>
                     {% if current_user %}
-                        <a href="{{ url_for('dashboard') }}" class="text-gray-300 hover:text-hot-pink transition duration-300">Dashboard</a>
-                        <a href="{{ url_for('logout') }}" class="py-2 px-4 rounded-full bg-hot-pink text-white font-semibold hover:bg-pink-700 cta-button">Logout</a>
+                        <a href="{{ url_for('dashboard') }}" class="text-gray-300 hover:text-hot-pink transition duration-300">{{ _('DASHBOARD') }}</a>
+                        <a href="{{ url_for('logout') }}" class="py-2 px-4 rounded-full bg-hot-pink text-white font-semibold hover:bg-pink-700 cta-button">{{ _('LOGOUT') }}</a>
                     {% else %}
-                        <a href="{{ url_for('login') }}" class="text-gray-300 hover:text-hot-pink transition duration-300">Login</a>
+                        <a href="{{ url_for('login') }}" class="text-gray-300 hover:text-hot-pink transition duration-300">{{ _('LOGIN') }}</a>
                         <div class="relative group">
                             <button class="py-2 px-4 rounded-full bg-hot-pink text-white font-semibold hover:bg-pink-700 cta-button">
-                                Sign Up
+                                {{ _('SIGN_UP') }}
                             </button>
                             <div class="absolute right-0 mt-2 w-48 bg-gray-800 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none group-hover:pointer-events-auto border border-hot-pink/50">
-                                <a href="{{ url_for('signup_client') }}" class="block px-4 py-2 text-gray-300 hover:bg-pink-600 hover:text-white rounded-t-lg">As Client</a>
-                                <a href="{{ url_for('signup_coiffeur') }}" class="block px-4 py-2 text-gray-300 hover:bg-pink-600 hover:text-white rounded-b-lg">As Hairdresser</a>
+                                <a href="{{ url_for('signup_client') }}" class="block px-4 py-2 text-gray-300 hover:bg-pink-600 hover:text-white rounded-t-lg">{{ _('AS_CLIENT') }}</a>
+                                <a href="{{ url_for('signup_coiffeur') }}" class="block px-4 py-2 text-gray-300 hover:bg-pink-600 hover:text-white rounded-b-lg">{{ _('AS_HAIRDRESSER') }}</a>
                             </div>
                         </div>
                     {% endif %}
@@ -96,16 +124,29 @@
         </nav>
 
         <div id="mobile-menu" class="hidden md:hidden fixed inset-0 bg-bg-dark z-40 p-6 pt-20">
-            <a href="{{ url_for('index') }}" class="block py-3 text-lg text-gray-300 hover:text-hot-pink border-b border-gray-800">Home</a>
-            <a href="{{ url_for('search_stylists') }}" class="block py-3 text-lg text-gray-300 hover:text-hot-pink border-b border-gray-800">Browse Stylists</a>
+            <!-- Language Selector for Mobile -->
+            <div class="mb-4">
+                <select onchange="window.location.href = this.value" 
+                        class="w-full bg-gray-800 text-lg text-gray-300 py-3 px-4 rounded-lg border border-hot-pink/30 cursor-pointer focus:ring-hot-pink focus:border-hot-pink appearance-none">
+                    {% for lang_code in available_languages %}
+                        <option value="{{ url_for('set_language', lang_code=lang_code) }}" 
+                                {% if lang_code == current_language %}selected{% endif %}>
+                            {{ _(lang_code.upper() ~ '_LABEL') }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <a href="{{ url_for('index') }}" class="block py-3 text-lg text-gray-300 hover:text-hot-pink border-b border-gray-800">{{ _('HOME') }}</a>
+            <a href="{{ url_for('search_stylists') }}" class="block py-3 text-lg text-gray-300 hover:text-hot-pink border-b border-gray-800">{{ _('BROWSE_STYLISTS') }}</a>
             {% if current_user %}
-                <a href="{{ url_for('dashboard') }}" class="block py-3 text-lg text-gray-300 hover:text-hot-pink border-b border-gray-800">Dashboard</a>
-                <a href="{{ url_for('logout') }}" class="block py-3 text-lg text-white bg-hot-pink text-center mt-4 rounded-lg cta-button">Logout</a>
+                <a href="{{ url_for('dashboard') }}" class="block py-3 text-lg text-gray-300 hover:text-hot-pink border-b border-gray-800">{{ _('DASHBOARD') }}</a>
+                <a href="{{ url_for('logout') }}" class="block py-3 text-lg text-white bg-hot-pink text-center mt-4 rounded-lg cta-button">{{ _('LOGOUT') }}</a>
             {% else %}
-                <a href="{{ url_for('login') }}" class="block py-3 text-lg text-gray-300 hover:text-hot-pink border-b border-gray-800">Login</a>
-                <p class="text-gray-500 mt-4 mb-2">Sign Up As:</p>
-                <a href="{{ url_for('signup_client') }}" class="block py-3 text-lg text-white bg-hot-pink text-center rounded-lg mb-2 cta-button">Client</a>
-                <a href="{{ url_for('signup_coiffeur') }}" class="block py-3 text-lg text-hot-pink border border-hot-pink text-center rounded-lg cta-button">Hairdresser</a>
+                <a href="{{ url_for('login') }}" class="block py-3 text-lg text-gray-300 hover:text-hot-pink border-b border-gray-800">{{ _('LOGIN') }}</a>
+                <p class="text-gray-500 mt-4 mb-2">{{ _('SIGN_UP') }} {{ _('AS') }}:</p>
+                <a href="{{ url_for('signup_client') }}" class="block py-3 text-lg text-white bg-hot-pink text-center rounded-lg mb-2 cta-button">{{ _('AS_CLIENT') }}</a>
+                <a href="{{ url_for('signup_coiffeur') }}" class="block py-3 text-lg text-hot-pink border border-hot-pink text-center rounded-lg cta-button">{{ _('AS_HAIRDRESSER') }}</a>
             {% endif %}
         </div>
 
@@ -125,12 +166,41 @@
 
 
         <main class="min-h-[calc(100vh-64px)] pt-16"> <!-- ADDED pt-16 (equivalent to p-4 navigation height) for sticky offset -->
-            {% block content %}{% endblock %}
+            <!-- Responsive container wrapper -->
+            <div class="container-fluid">
+                {% block content %}{% endblock %}
+            </div>
         </main>
 
         <footer class="bg-gray-900 border-t border-hot-pink/50 mt-12 py-6">
-            <div class="container mx-auto text-center text-gray-500">
-                <p>&copy; 2025 7ELA9.com. All rights reserved. | Luxury Hair Service Marketplace</p>
+            <div class="container mx-auto text-center text-gray-500 space-y-3">
+                
+                <!-- New: Contact Support Section -->
+                <p class="text-white text-sm">
+                    {{ _('SUPPORT_24_7') }}: 
+                    <a href="mailto:contact@7ela9.com" class="text-hot-pink hover:text-white transition duration-300">contact@7ela9.com</a>
+                </p>
+
+                <!-- New: Social Links/Developer Credit Section -->
+                <div class="flex items-center justify-center space-x-4 text-xs">
+                    <!-- Website Instagram Link -->
+                    <a href="https://www.instagram.com/the7ela9/" target="_blank" class="flex items-center text-gray-400 hover:text-hot-pink transition duration-300">
+                        <svg data-lucide="instagram" class="w-4 h-4 mr-1"></svg> @the7ela9
+                    </a>
+
+                    <span class="text-gray-600">|</span>
+                    
+                    <!-- Developer Credit Link -->
+                    <span class="text-gray-500">{{ _('DEVELOPED_BY') }}:</span>
+                    <a href="https://www.instagram.com/mrflexnotscripted/" target="_blank" class="text-gray-400 hover:text-hot-pink transition duration-300">
+                        @mrflexnotscripted
+                    </a>
+                </div>
+
+                <!-- Existing Copyright Notice -->
+                <p class="text-xs text-gray-500 pt-3 border-t border-gray-800">
+                    &copy; 2025 7ELA9.com. {{ _('ALL_RIGHTS_RESERVED') }}
+                </p>
             </div>
         </footer>
     </div>

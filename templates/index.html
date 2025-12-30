@@ -2,352 +2,332 @@
 {% block title %}7ela9.com - Find & Book Your Next Coiffeur Appointment{% endblock %}
 {% block content %}
 
-<!-- Custom CSS for the Background Video (Minimal) -->
+<!-- Redesigned Minimal & Premium Styles -->
 <style>
-    /* Ensures the main content wrapper sits above the video */
-    .page-transition {
-        position: relative;
-        z-index: 10;
-        /* Tailwind classes ensure the content wrapper has a minimum height and margin */
+    :root {
+        --accent-pink: #FF69B4;
+        --accent-pink-dark: #e05599;
     }
 
-    /* Video container controls position and overflow */
-    .video-background {
-        position: absolute; /* Allows it to sit behind the content */
+    /* Modern Mesh Gradient Background */
+    .bg-mesh {
+        position: fixed;
         top: 0;
         left: 0;
         width: 100%;
-        height: 100vh; /* Set a default large height or adjust as needed */
-        overflow: hidden;
-        z-index: 0; /* Ensures it is between the header (if fixed) and the content */
-        pointer-events: none; /* Prevents interference with clicks */
-    }
-
-    /* The video element itself, ensuring it covers the container responsively */
-    .video-background video {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        /* These properties ensure the video covers the entire viewport */
-        min-width: 100%;
-        min-height: 100%;
-        width: auto;
-        height: auto;
-        transform: translate(-50%, -50%);
-        /* Required to keep the video behind ALL content */
+        height: 100%;
         z-index: -1;
-        object-fit: cover;
+        background-color: #0a0a0c;
+        background-image: 
+            radial-gradient(at 0% 0%, rgba(255, 105, 180, 0.08) 0px, transparent 50%),
+            radial-gradient(at 100% 0%, rgba(255, 105, 180, 0.05) 0px, transparent 50%);
     }
 
-    /* Small adjustment to ensure the entire page area is covered by the video background effect, if desired.
-       The existing .page-transition structure contains the content. 
-       This CSS is only for the background functionality requested. 
-    */
-    
-    /* NEW CSS for "What is 7ela9.com" section to ensure readability */
-    .section-what {
-        background-color: #000000 !important;
-        opacity: 1 !important;
-        color: #ffffff !important;
-        padding: 40px 20px;
+    .hero-title {
+        background: linear-gradient(to right, #fff, #bbb);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+
+    .glass-surface {
+        background: rgba(255, 255, 255, 0.03);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .glass-surface:hover {
+        border-color: rgba(255, 105, 180, 0.3);
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    .cta-primary {
+        background: var(--accent-pink);
+        box-shadow: 0 10px 20px -10px rgba(255, 105, 180, 0.5);
+    }
+
+    .cta-primary:hover {
+        background: var(--accent-pink-dark);
+        transform: translateY(-2px);
+    }
+
+    .cta-secondary {
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .cta-secondary:hover {
+        background: rgba(255, 255, 255, 0.05);
+        border-color: var(--accent-pink);
+        color: var(--accent-pink);
+        transform: translateY(-2px);
+    }
+
+    /* Animation for sections */
+    .reveal {
+        animation: reveal 0.8s ease forwards;
+    }
+
+    @keyframes reveal {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
     }
 </style>
 
-<div class="page-transition container mx-auto px-4 py-12 min-h-screen">
+<div class="bg-mesh"></div>
+
+<!-- Data relay for JS to prevent linter errors -->
+<div id="js-data-relay" 
+     data-authenticated="{{ (current_user is not none and current_user.id is not none) | tojson }}"
+     class="hidden"></div>
+
+<div class="relative z-10 container mx-auto px-6 pt-24 pb-12">
     
-    <!-- Hero Section -->
-    <header class="text-center mb-16">
-        <h1 class="text-6xl font-extrabold text-white mb-4 tracking-tight drop-shadow-lg" style="text-shadow: 0 0 20px #FF69B4;">
-            <span class="text-hot-pink">7ela9.com:</span> {{ _('TITLE_FUTURE') }}
+    <!-- Hero Section: Clean & Bold -->
+    <header class="text-center mb-24 reveal">
+        <div class="inline-block px-4 py-1.5 mb-6 text-xs font-semibold tracking-widest uppercase text-hot-pink bg-pink-500/10 rounded-full border border-pink-500/20">
+            {{ _('TITLE_FUTURE') }}
+        </div>
+        <h1 class="text-5xl md:text-7xl font-bold mb-6 hero-title tracking-tight leading-tight">
+            Elevate Your <span class="text-hot-pink italic font-serif">Style</span> Experience.
         </h1>
-        <p class="text-2xl text-gray-400 max-w-4xl mx-auto font-light">
+        <p class="text-lg md:text-xl text-gray-400 max-w-2xl mx-auto mb-10 leading-relaxed font-light">
             {{ _('SUBTITLE_CONNECT') }}
         </p>
-        <div class="mt-8 flex justify-center space-x-4">
-            <a href="{{ url_for('signup_client') }}" class="cta-button bg-hot-pink hover:bg-pink-700 text-white font-bold py-3 px-8 rounded-full shadow-lg transform hover:scale-105 transition duration-300">
+        <div class="flex flex-col sm:flex-row justify-center items-center gap-4">
+            <a href="{{ url_for('signup_client') }}" class="cta-primary w-full sm:w-auto px-10 py-4 rounded-xl text-white font-semibold transition-all">
                 {{ _('START_AS_CLIENT') }}
             </a>
-            <a href="{{ url_for('signup_coiffeur') }}" class="cta-button border border-hot-pink text-hot-pink hover:bg-hot-pink/20 font-bold py-3 px-8 rounded-full shadow-lg transform hover:scale-105 transition duration-300">
+            <a href="{{ url_for('signup_coiffeur') }}" class="cta-secondary w-full sm:w-auto px-10 py-4 rounded-xl text-white font-semibold transition-all">
                 {{ _('JOIN_AS_COIFFEUR') }}
             </a>
         </div>
     </header>
 
-    <!-- START: Video Background Insertion (Immediately after closing </header>) -->
-    <div class="video-background">
-        <video autoplay muted loop playsinline>
-            <source src="static/video/back.mp4" type="video/mp4">
-        </video>
-    </div>
-    <!-- END: Video Background Insertion -->
-
-    <!-- 1. PLATFORM PURPOSE & VALUE PROPOSITION -->
-    <section class="glass-card mb-16 p-8 rounded-xl shadow-2xl border-2 border-pink-500/30 text-white section-what">
-        <h2 class="text-4xl font-bold text-white text-center mb-8">{{ _('WHAT_IS_7ELA9') }}</h2>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 text-white">
-            
-            <!-- Purpose 1: Showcase & Trust -->
-            <div class="text-center p-4 border border-gray-700/50 rounded-lg">
-                <svg data-lucide="star" class="w-10 h-10 text-hot-pink mx-auto mb-3 fill-hot-pink/30"></svg>
-                <h3 class="text-xl font-semibold text-white mb-2">{{ _('TALENT_SHOWCASE_TITLE') }}</h3>
-                <p class="text-sm">{{ _('TALENT_SHOWCASE_TEXT') }}</p>
+    <!-- Platform Values: Simplified Grid -->
+    <section class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-32 reveal" style="animation-delay: 0.2s;">
+        <div class="glass-surface p-8 rounded-2xl">
+            <div class="w-12 h-12 bg-pink-500/10 rounded-xl flex items-center justify-center mb-6">
+                <svg data-lucide="sparkles" class="w-6 h-6 text-hot-pink"></svg>
             </div>
+            <h3 class="text-xl font-bold text-white mb-3">{{ _('TALENT_SHOWCASE_TITLE') }}</h3>
+            <p class="text-gray-400 text-sm leading-relaxed">{{ _('TALENT_SHOWCASE_TEXT') }}</p>
+        </div>
 
-            <!-- Purpose 2: Efficiency & Convenience -->
-            <div class="text-center p-4 border border-gray-700/50 rounded-lg">
-                <svg data-lucide="calendar-check" class="w-10 h-10 text-hot-pink mx-auto mb-3"></svg>
-                <h3 class="text-xl font-semibold text-white mb-2">{{ _('BOOKING_SYSTEM_TITLE') }}</h3>
-                <p class="text-sm">{{ _('BOOKING_SYSTEM_TEXT') }}</p>
+        <div class="glass-surface p-8 rounded-2xl">
+            <div class="w-12 h-12 bg-pink-500/10 rounded-xl flex items-center justify-center mb-6">
+                <svg data-lucide="calendar" class="w-6 h-6 text-hot-pink"></svg>
             </div>
+            <h3 class="text-xl font-bold text-white mb-3">{{ _('BOOKING_SYSTEM_TITLE') }}</h3>
+            <p class="text-gray-400 text-sm leading-relaxed">{{ _('BOOKING_SYSTEM_TEXT') }}</p>
+        </div>
 
-            <!-- Purpose 3: Flexibility (Déplacé) -->
-            <div class="text-center p-4 border border-gray-700/50 rounded-lg">
-                <svg data-lucide="map-pin" class="w-10 h-10 text-hot-pink mx-auto mb-3"></svg>
-                <h3 class="text-xl font-semibold text-white mb-2">{{ _('MOBILE_STYLIST_NETWORK_TITLE') }}</h3>
-                <p class="text-sm">{{ _('MOBILE_STYLIST_NETWORK_TEXT') }}</p>
+        <div class="glass-surface p-8 rounded-2xl">
+            <div class="w-12 h-12 bg-pink-500/10 rounded-xl flex items-center justify-center mb-6">
+                <svg data-lucide="navigation" class="w-6 h-6 text-hot-pink"></svg>
+            </div>
+            <h3 class="text-xl font-bold text-white mb-3">{{ _('MOBILE_STYLIST_NETWORK_TITLE') }}</h3>
+            <p class="text-gray-400 text-sm leading-relaxed">{{ _('MOBILE_STYLIST_NETWORK_TEXT') }}</p>
+        </div>
+    </section>
+
+    <!-- Core Services -->
+    <section class="mb-32 reveal" style="animation-delay: 0.3s;">
+        <div class="flex flex-col md:flex-row justify-between items-end mb-12 gap-6">
+            <div class="max-w-xl">
+                <h2 class="text-3xl md:text-4xl font-bold text-white mb-4">{{ _('CORE_SERVICES') }}</h2>
+                <p class="text-gray-400">Discover a range of professional beauty services tailored to your lifestyle.</p>
+            </div>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div class="group relative p-6 rounded-2xl bg-gradient-to-b from-white/5 to-transparent border border-white/5 hover:border-pink-500/50 transition-all">
+                <svg data-lucide="scissors" class="w-8 h-8 text-hot-pink mb-4 opacity-70 group-hover:opacity-100 transition-opacity"></svg>
+                <h3 class="text-xl font-semibold text-white mb-2">{{ _('CLASSIC_APPOINTMENTS_TITLE') }}</h3>
+                <p class="text-gray-500 text-sm">{{ _('CLASSIC_APPOINTMENTS_TEXT') }}</p>
+            </div>
+            <div class="group relative p-6 rounded-2xl bg-gradient-to-b from-white/5 to-transparent border border-white/5 hover:border-pink-500/50 transition-all">
+                <svg data-lucide="camera" class="w-8 h-8 text-hot-pink mb-4 opacity-70 group-hover:opacity-100 transition-opacity"></svg>
+                <h3 class="text-xl font-semibold text-white mb-2">{{ _('DIGITAL_PORTFOLIO_TITLE') }}</h3>
+                <p class="text-gray-500 text-sm">{{ _('DIGITAL_PORTFOLIO_TEXT') }}</p>
+            </div>
+            <div class="group relative p-6 rounded-2xl bg-gradient-to-b from-white/5 to-transparent border border-white/5 hover:border-pink-500/50 transition-all">
+                <svg data-lucide="zap" class="w-8 h-8 text-hot-pink mb-4 opacity-70 group-hover:opacity-100 transition-opacity"></svg>
+                <h3 class="text-xl font-semibold text-white mb-2">{{ _('PRICE_BIDDING_TITLE') }}</h3>
+                <p class="text-gray-500 text-sm">{{ _('PRICE_BIDDING_TEXT') }}</p>
             </div>
         </div>
     </section>
 
-    <!-- 2. SERVICES EXPLANATION -->
-    <section class="mb-16">
-        <h2 class="text-4xl font-bold text-white text-center mb-8">{{ _('CORE_SERVICES') }}</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            
-            <!-- Service 1: In-Salon Booking -->
-            <div class="glass-card p-6 rounded-xl border-t-4 border-hot-pink/50 shadow-lg">
-                <div class="flex items-center mb-4">
-                    <svg data-lucide="store" class="w-8 h-8 text-hot-pink mr-3"></svg>
-                    <h3 class="text-2xl font-semibold text-white">{{ _('CLASSIC_APPOINTMENTS_TITLE') }}</h3>
+    <!-- Process Section: Modern Horizontal/Vertical Steps -->
+    <section class="mb-32 reveal" style="animation-delay: 0.4s;">
+        <div class="glass-surface p-12 rounded-3xl">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-20">
+                <!-- Clients -->
+                <div>
+                    <h3 class="text-2xl font-bold text-white mb-8 flex items-center">
+                        <span class="w-8 h-8 rounded-lg bg-hot-pink/20 text-hot-pink flex items-center justify-center mr-3 text-sm">
+                            <svg data-lucide="user" class="w-4 h-4"></svg>
+                        </span>
+                        {{ _('AS_CLIENT') }}
+                    </h3>
+                    <div class="space-y-8">
+                        <div class="flex gap-4">
+                            <span class="text-hot-pink/30 font-bold text-2xl">01</span>
+                            <div>
+                                <h4 class="text-white font-semibold mb-1">{{ _('CLIENT_1_TITLE') }}</h4>
+                                <p class="text-gray-500 text-sm">{{ _('CLIENT_1_TEXT') }}</p>
+                            </div>
+                        </div>
+                        <div class="flex gap-4">
+                            <span class="text-hot-pink/30 font-bold text-2xl">02</span>
+                            <div>
+                                <h4 class="text-white font-semibold mb-1">{{ _('CLIENT_3_TITLE') }}</h4>
+                                <p class="text-gray-500 text-sm">{{ _('CLIENT_3_TEXT') }}</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <p class="text-gray-400">{{ _('CLASSIC_APPOINTMENTS_TEXT') }}</p>
-            </div>
-            
-            <!-- Service 2: Portfolio & Discovery -->
-            <div class="glass-card p-6 rounded-xl border-t-4 border-hot-pink/50 shadow-lg">
-                <div class="flex items-center mb-4">
-                    <svg data-lucide="image" class="w-8 h-8 text-hot-pink mr-3"></svg>
-                    <h3 class="text-2xl font-semibold text-white">{{ _('DIGITAL_PORTFOLIO_TITLE') }}</h3>
+
+                <!-- Stylists -->
+                <div>
+                    <h3 class="text-2xl font-bold text-white mb-8 flex items-center">
+                        <span class="w-8 h-8 rounded-lg bg-hot-pink/20 text-hot-pink flex items-center justify-center mr-3 text-sm">
+                            <svg data-lucide="scissors" class="w-4 h-4"></svg>
+                        </span>
+                        {{ _('AS_HAIRDRESSER') }}
+                    </h3>
+                    <div class="space-y-8">
+                        <div class="flex gap-4">
+                            <span class="text-hot-pink/30 font-bold text-2xl">01</span>
+                            <div>
+                                <h4 class="text-white font-semibold mb-1">{{ _('HAIRDRESSER_1_TITLE') }}</h4>
+                                <p class="text-gray-500 text-sm">{{ _('HAIRDRESSER_1_TEXT') }}</p>
+                            </div>
+                        </div>
+                        <div class="flex gap-4">
+                            <span class="text-hot-pink/30 font-bold text-2xl">02</span>
+                            <div>
+                                <h4 class="text-white font-semibold mb-1">{{ _('HAIRDRESSER_3_TITLE') }}</h4>
+                                <p class="text-gray-500 text-sm">{{ _('HAIRDRESSER_3_TEXT') }}</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <p class="text-gray-400">{{ _('DIGITAL_PORTFOLIO_TEXT') }}</p>
-            </div>
-
-            <!-- Service 3: Déplacement Requests (The InDrive Model) -->
-            <div class="glass-card p-6 rounded-xl border-t-4 border-hot-pink/50 shadow-lg">
-                <div class="flex items-center mb-4">
-                    <svg data-lucide="car" class="w-8 h-8 text-hot-pink mr-3"></svg>
-                    <h3 class="text-2xl font-semibold text-white">{{ _('PRICE_BIDDING_TITLE') }}</h3>
-                </div>
-                <p class="text-gray-400">{{ _('PRICE_BIDDING_TEXT') }}</p>
-            </div>
-        </div>
-    </section>
-
-    <!-- 3. STEPS FOR CLIENTS & COIFFEURS (Will be dynamically populated by JS) -->
-    <section class="glass-card mb-16 p-8 rounded-xl shadow-2xl border-2 border-pink-500/30 text-white">
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
-            
-            <!-- Steps for Clients Container -->
-            <div>
-                <h3 class="text-3xl font-bold text-hot-pink mb-6 flex items-center"><svg data-lucide="user" class="w-6 h-6 mr-2"></svg> {{ _('AS_CLIENT') }}</h3>
-                <ol id="client-steps" class="space-y-4 text-gray-300">
-                    <!-- Content will be injected here by JavaScript -->
-                </ol>
-            </div>
-
-            <!-- Steps for Coiffeurs Container -->
-            <div>
-                <h3 class="text-3xl font-bold text-hot-pink mb-6 flex items-center"><svg data-lucide="scissors" class="w-6 h-6 mr-2"></svg> {{ _('AS_HAIRDRESSER') }}</h3>
-                <ol id="hairdresser-steps" class="space-y-4 text-gray-300">
-                    <!-- Content will be injected here by JavaScript -->
-                </ol>
             </div>
         </div>
     </section>
     
-    <!-- 4. Coiffeur Preview Section (Existing Logic) -->
-    <section class="mb-12">
-        <h2 class="text-4xl font-bold text-white text-center mb-10">{{ _('FEATURED_STYLISTS') }}</h2>
-        <p class="text-center text-gray-400 max-w-2xl mx-auto mb-10">
-            {{ _('SUBTITLE_CONNECT').split('.')[0] }}. Log in to explore their full services, capacity status, and book instantly.
-
-
-        </p>
+    <!-- Stylist Showcase -->
+    <section class="mb-32 reveal" style="animation-delay: 0.5s;">
+        <div class="text-center mb-16">
+            <h2 class="text-4xl font-bold text-white mb-4">{{ _('FEATURED_STYLISTS') }}</h2>
+            <p class="text-gray-400 max-w-xl mx-auto">{{ _('SUBTITLE_CONNECT').split('.')[0] }}. Browse top talent in your city.</p>
+        </div>
         
-        <!-- Coiffeur Grid -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {% for stylist in stylists %}
-            <!-- Stylist Card -->
-            <!-- The card now has a click handler to redirect or show the modal -->
-            <div onclick="handleProfileClick({{ stylist.user.id }})" 
-                class="group block glass-card rounded-xl p-6 text-white hover:border-pink-500 transform hover:scale-[1.03] transition duration-300 cursor-pointer shadow-lg" 
-                aria-label="View profile for {{ stylist.user.name }}">
-                <div class="flex flex-col items-center">
-                    <!-- Profile Image -->
-                    <div class="w-24 h-24 rounded-full overflow-hidden mb-4 border-4 border-hot-pink group-hover:border-white transition duration-300">
-                        <img src="{{ stylist.coiffeur.profile_image if stylist.coiffeur.profile_image else 'https://placehold.co/100x100/111/FF69B4?text=' + stylist.user.name[0] }}" 
-                            alt="{{ stylist.user.name }}" class="w-full h-full object-cover">
-                    </div>
-                    
-                    <h2 class="text-xl font-bold text-white group-hover:text-hot-pink transition duration-300">{{ stylist.user.name }}</h2>
-                    <p class="text-sm text-gray-400 mb-3">{{ stylist.user.city }} | {{ stylist.coiffeur.category }}</p>
-                    
-                    <!-- Ratings -->
-                    <div class="flex items-center mb-4 text-hot-pink">
-                        {% for i in range(5) %}
-                            {% if i < stylist.rating|round(0, 'floor') %}
-                                <svg data-lucide="star" class="w-5 h-5 fill-current"></svg>
-                            {% else %}
-                                <svg data-lucide="star" class="w-5 h-5 text-gray-500"></svg>
-                            {% endif %}
-                        {% endfor %}
-                        <span class="text-gray-300 ml-2 text-sm">({{ stylist.rating|round(1) }})</span>
-                    </div>
-
-                    <!-- Action CTA -->
-                    <button class="w-full mt-2 bg-hot-pink text-white font-semibold py-2 rounded-full cta-button text-center group-hover:bg-pink-700 transition" 
-                            aria-label="View Profile">
-                        {{ _('VIEW_PORTFOLIO') }}
-                    </button>
+            <!-- Fixed onclick to avoid linter error in VS Code/Canvas -->
+            <div data-id="{{ stylist.user.id }}" 
+                onclick="handleProfileClick(this.getAttribute('data-id'))" 
+                class="group glass-surface rounded-2xl p-6 cursor-pointer text-center">
+                <div class="relative w-24 h-24 mx-auto mb-6">
+                    <div class="absolute inset-0 bg-hot-pink blur-md opacity-20 group-hover:opacity-40 transition-opacity"></div>
+                    <img src="{{ stylist.coiffeur.profile_image if stylist.coiffeur.profile_image else 'https://placehold.co/100x100/111/FF69B4?text=' + stylist.user.name[0] }}" 
+                         alt="{{ stylist.user.name }}" class="relative w-24 h-24 rounded-2xl object-cover border border-white/10">
                 </div>
+                
+                <h3 class="text-lg font-bold text-white mb-1 group-hover:text-hot-pink transition-colors">{{ stylist.user.name }}</h3>
+                <p class="text-xs text-gray-500 mb-4 uppercase tracking-wider">{{ stylist.user.city }} • {{ stylist.coiffeur.category }}</p>
+                
+                <div class="flex justify-center items-center gap-1 mb-6">
+                    {% for i in range(5) %}
+                        <svg data-lucide="star" class="w-3.5 h-3.5 {{ 'text-hot-pink fill-hot-pink' if i < stylist.rating|round(0, 'floor') else 'text-gray-700' }}"></svg>
+                    {% endfor %}
+                    <span class="text-gray-500 text-xs ml-1">({{ stylist.rating|round(1) }})</span>
+                </div>
+
+                <button class="w-full py-2.5 rounded-xl border border-white/10 text-xs font-semibold text-white group-hover:bg-hot-pink group-hover:border-hot-pink transition-all">
+                    {{ _('VIEW_PORTFOLIO') }}
+                </button>
             </div>
             {% else %}
-                <p class="col-span-full text-center text-gray-500 text-lg">{{ _('NO_STYLISTS_FOUND') }}</p>
+                <p class="col-span-full text-center text-gray-500 italic">{{ _('NO_STYLISTS_FOUND') }}</p>
             {% endfor %}
         </div>
         
-        <div class="text-center mt-12">
-            <a href="{{ url_for('search_stylists') }}" class="inline-flex items-center text-lg font-medium text-hot-pink hover:text-white transition duration-200">
-                {{ _('VIEW_ALL_STYLISTS') }} <svg data-lucide="arrow-right" class="w-5 h-5 ml-2"></svg>
+        <div class="text-center mt-16">
+            <a href="{{ url_for('search_stylists') }}" class="inline-flex items-center gap-2 px-8 py-3 rounded-xl border border-white/10 text-white hover:text-hot-pink hover:border-hot-pink transition-all">
+                {{ _('VIEW_ALL_STYLISTS') }} <svg data-lucide="arrow-right" class="w-4 h-4"></svg>
             </a>
         </div>
-        
     </section>
 
 </div>
 
-<!-- Login/Signup Modal (Initially Hidden) -->
-<div id="auth-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-4 transition-opacity duration-300">
-    <div class="glass-card w-full max-w-lg p-8 rounded-xl shadow-2xl relative">
-        <button onclick="closeAuthModal()" class="absolute top-4 right-4 text-gray-400 hover:text-hot-pink transition" aria-label="Close modal">
+<!-- Auth Modal (Logic Preserved) -->
+<div id="auth-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[100] hidden flex items-center justify-center p-6 transition-opacity duration-300">
+    <div class="glass-surface w-full max-w-md p-10 rounded-3xl relative">
+        <button onclick="closeAuthModal()" class="absolute top-6 right-6 text-gray-500 hover:text-white transition">
             <svg data-lucide="x" class="w-6 h-6"></svg>
         </button>
         
-        <h2 class="text-3xl font-bold text-white mb-2 text-center">{{ _('ACCESS_REQUIRED') }}</h2>
-        <p class="text-gray-400 mb-8 text-center">{{ _('LOGIN_TO_VIEW') }}</p>
+        <h2 class="text-2xl font-bold text-white mb-2 text-center">{{ _('ACCESS_REQUIRED') }}</h2>
+        <p class="text-gray-400 mb-8 text-center text-sm">{{ _('LOGIN_TO_VIEW') }}</p>
 
-        <!-- Login Form -->
         <form method="POST" action="{{ url_for('login') }}" class="space-y-4">
             <input type="hidden" name="redirect_url" id="modal-redirect-url">
             
-            <div>
-                <label for="modal-email" class="block text-sm font-medium text-gray-300 mb-1">{{ _('EMAIL') }}</label>
-                <input type="email" id="modal-email" name="email" required
-                       class="w-full p-3 rounded-lg bg-gray-800 border border-hot-pink/50 text-white focus:ring-hot-pink focus:border-hot-pink">
+            <div class="space-y-1.5">
+                <label class="text-xs font-semibold text-gray-400 ml-1 uppercase tracking-wider">{{ _('EMAIL') }}</label>
+                <input type="email" name="email" required
+                       class="w-full p-4 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-hot-pink transition-colors">
             </div>
             
-            <div>
-                <label for="modal-password" class="block text-sm font-medium text-gray-300 mb-1">{{ _('PASSWORD') }}</label>
-                <input type="password" id="modal-password" name="password" required
-                       class="w-full p-3 rounded-lg bg-gray-800 border border-hot-pink/50 text-white focus:ring-hot-pink focus:border-hot-pink">
+            <div class="space-y-1.5">
+                <label class="text-xs font-semibold text-gray-400 ml-1 uppercase tracking-wider">{{ _('PASSWORD') }}</label>
+                <input type="password" name="password" required
+                       class="w-full p-4 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-hot-pink transition-colors">
             </div>
             
-            <button type="submit" class="cta-button w-full bg-hot-pink text-white font-bold py-3 rounded-lg hover:bg-pink-700 transition">
+            <button type="submit" class="w-full cta-primary text-white font-bold py-4 rounded-xl mt-4 transition-all">
                 {{ _('LOGIN') }}
             </button>
         </form>
 
-        <div class="mt-6 text-center">
-            <p class="text-gray-500 mb-3">--- OR ---</p>
-            <a href="{{ url_for('signup_client') }}" class="block text-hot-pink hover:text-white font-medium transition">
+        <div class="mt-8 text-center border-t border-white/5 pt-8">
+            <a href="{{ url_for('signup_client') }}" class="text-hot-pink hover:text-white text-sm font-semibold transition-colors">
                 {{ _('NEW_CLIENT_SIGNUP') }}
             </a>
-            <a href="{{ url_for('signup_coiffeur') }}" class="block text-gray-500 hover:text-gray-300 text-sm mt-2 transition">
-                {{ _('SIGN_UP') }} {{ _('AS_HAIRDRESSER') }}
-            </a>
+            <div class="mt-2">
+                <a href="{{ url_for('signup_coiffeur') }}" class="text-gray-500 hover:text-gray-300 text-xs transition-colors">
+                    {{ _('SIGN_UP') }} {{ _('AS_HAIRDRESSER') }}
+                </a>
+            </div>
         </div>
     </div>
 </div>
 
 <script>
-    // 1. DATA: The JSON content you provided, embedded directly in JavaScript.
-    const STEPS_DATA = {
-        "CLIENT_1_TITLE": "Search & Discover",
-        "CLIENT_1_TEXT": "Browse local coiffeurs by city, category (Homme, Femme, Déplacé), or proximity.",
-        "CLIENT_2_TITLE": "Check Portfolio",
-        "CLIENT_2_TEXT": "View their photo gallery, full service menu, and client reviews to pick your favorite.",
-        "CLIENT_3_TITLE": "Book or Bid",
-        "CLIENT_3_TEXT": "Book a classic appointment or post a 'Déplacé' request for mobile service providers to bid on.",
-        "CLIENT_4_TITLE": "Get Styled",
-        "CLIENT_4_TEXT": "Enjoy your appointment, and leave a review!",
-        "HAIRDRESSER_1_TITLE": "Create Profile",
-        "HAIRDRESSER_1_TEXT": "Set up your profile, address, and category (Homme, Femme, Déplacé).",
-        "HAIRDRESSER_2_TITLE": "Set Services",
-        "HAIRDRESSER_2_TEXT": "Define your service menu, pricing, and availability.",
-        "HAIRDRESSER_3_TITLE": "Go Live",
-        "HAIRDRESSER_3_TEXT": "Start receiving bookings or bid on mobile service requests.",
-        "HAIRDRESSER_4_TITLE": "Grow Your Business",
-        "HAIRDRESSER_4_TEXT": "Manage your clients, collect payments, and build your professional reputation."
-    };
-
-    /**
-     * Renders the steps dynamically using the STEPS_DATA object.
-     * @param {string} type - 'CLIENT' or 'HAIRDRESSER'
-     * @param {number} count - The number of steps to render.
-     */
-    function renderSteps(type, count) {
-        const containerId = type.toLowerCase() === 'client' ? 'client-steps' : 'hairdresser-steps';
-        const container = document.getElementById(containerId);
-        if (!container) return;
-        
-        let html = '';
-        for (let i = 1; i <= count; i++) {
-            const textKey = `${type}_${i}_TEXT`;
-            const titleKey = `${type}_${i}_TITLE`;
-            
-            const text = STEPS_DATA[textKey] || `[Text missing for ${textKey}]`;
-            const title = STEPS_DATA[titleKey] || `[Title missing for ${titleKey}]`;
-
-            html += `
-                <li class="flex items-start">
-                    <span class="flex-shrink-0 mr-3 text-lg font-bold text-hot-pink bg-pink-900/50 rounded-full w-8 h-8 flex items-center justify-center">${i}</span>
-                    <!-- Displaying Title and Text dynamically -->
-                    <div>
-                        <p class="font-semibold text-white mb-1">${title}</p>
-                        <p>${text}</p>
-                    </div>
-                </li>
-            `;
-        }
-        container.innerHTML = html;
-    }
-
-
-    // --- Existing Script Logic ---
-
-    // Safely check if the user is authenticated (set in Jinja context)
-    const IS_AUTHENTICATED = {{ (current_user is not none and current_user.id is not none) | tojson }};
+    // Using a data-relay element to hide Jinja from the JS linter
+    const relay = document.getElementById('js-data-relay');
+    const IS_AUTHENTICATED = relay ? JSON.parse(relay.getAttribute('data-authenticated')) : false;
+    
     const AUTH_MODAL = document.getElementById('auth-modal');
     const REDIRECT_URL_INPUT = document.getElementById('modal-redirect-url');
     
-    // Jinja-provided URL helper function for use in JS
     function getProfileUrl(coiffeurId) {
-        // Mocking url_for('view_profile', coiffeur_id=coiffeurId)
         return `/profile/${coiffeurId}`;
     }
 
     function handleProfileClick(coiffeurId) {
         if (IS_AUTHENTICATED) {
-            // User is logged in, redirect directly to the full profile
             window.location.href = getProfileUrl(coiffeurId);
         } else {
-            // User is not logged in, show the modal
             openAuthModal(coiffeurId);
         }
     }
     
     function openAuthModal(coiffeurId) {
-        // Set the hidden redirect URL in the form
         REDIRECT_URL_INPUT.value = getProfileUrl(coiffeurId);
         AUTH_MODAL.classList.remove('hidden');
     }
@@ -357,19 +337,14 @@
     }
     
     document.addEventListener('DOMContentLoaded', () => {
-        // Create new icons
         lucide.createIcons();
-        // Close modal if user clicks outside of the content
-        AUTH_MODAL.addEventListener('click', (e) => {
-            if (e.target === AUTH_MODAL) {
-                closeAuthModal();
-            }
-        });
-        
-        // 2. EXECUTION: Render the client and hairdresser steps on page load
-        // Assuming 4 steps for each, based on the original template's list structure
-        renderSteps('CLIENT', 4);
-        renderSteps('HAIRDRESSER', 4);
+        if (AUTH_MODAL) {
+            AUTH_MODAL.addEventListener('click', (e) => {
+                if (e.target === AUTH_MODAL) {
+                    closeAuthModal();
+                }
+            });
+        }
     });
 </script>
 

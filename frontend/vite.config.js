@@ -22,7 +22,7 @@ export default defineConfig({
   },
   build: {
     // Output build files to a directory Flask can serve easily if needed
-    outDir: '../static/dist',
+    outDir: 'dist',
     emptyOutDir: true
   }
 })

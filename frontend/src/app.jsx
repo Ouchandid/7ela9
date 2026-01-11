@@ -10,8 +10,17 @@ import {
 } from 'lucide-react';
 
 // --- CONFIG ---
-// Safe backend URL retrieval that works in Vite and falls back gracefully in environments where import.meta is empty
-const API_URL = (import.meta && import.meta.env) ? import.meta.env.VITE_API_URL : '';
+// Robust backend URL retrieval:
+// 1. Tries to access Vite environment variable
+// 2. Catches errors if import.meta is empty/undefined (common in some preview environments)
+// 3. Falls back to empty string (relative path) if variable is missing
+const API_URL = (() => {
+  try {
+    return (import.meta && import.meta.env && import.meta.env.VITE_API_URL) || '';
+  } catch (e) {
+    return '';
+  }
+})();
 
 // --- UTILS & HOOKS ---
 

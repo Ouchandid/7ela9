@@ -137,48 +137,42 @@ const GlassCard = ({ children, className = '', hoverEffect = true }) => {
 
 // --- FEATURE COMPONENTS ---
 
-// 1. LOGIN PAGE (NEW)
-const LoginPage = ({ onNavigate }) => {
-  const handleLogin = async (e) => {
-  e.preventDefault(); // prevent full page reload
-
-  // Collect form data
-  const formData = new FormData(e.target);
-  const email = formData.get("email");
-  const password = formData.get("password");
-
-  try {
-    const res = await fetch(`${API_URL}/api/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
-
-    const data = await res.json();
-
-    if (res.ok && data.message === "Login successful") {
-      console.log("Logged in user:", data.user);
-      // Optional: store user in state or localStorage
-      // localStorage.setItem("user", JSON.stringify(data.user));
-
-      // Navigate to dashboard or another page
-      onNavigate("dashboard"); 
-    } else {
-      alert(data.error || "Login failed");
+// 1. LOGIN PAGE (FIXED)
+const LoginPage = ({ onNavigate, onLogin }) => {
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    
+    try {
+      const res = await fetch(`${API_URL}/api/auth/login`, {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      
+      if (res.ok) {
+        if (onLogin) {
+          onLogin(data.user);
+        } else {
+          // Fallback if prop not provided (reload to sync state)
+          window.location.reload();
+        }
+      } else {
+        alert(data.error || 'Login failed');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Network error during login');
     }
-  } catch (err) {
-    console.error("Login error:", err);
-    alert("An error occurred during login.");
-  }
-};
+  };
 
   return (
     <div className="flex justify-center py-12 px-4">
       <GlassCard className="w-full max-w-lg p-8 md:p-12">
         <h2 className="text-3xl font-extrabold text-white text-center mb-8">Welcome Back</h2>
         
-        {/* Standard Form Submission to Flask Backend */}
-        <form onSubmit={handleLogin} className="space-y-6">
+        {/* Changed from action/method to onSubmit to handle JSON response */}
+        <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label className="block text-sm font-medium text-pink-500 mb-2">Email</label>
             <input type="email" name="email" required className="w-full p-3 rounded-lg bg-zinc-800 border border-pink-500/30 text-white focus:border-pink-500 outline-none" placeholder="you@example.com" />
@@ -200,9 +194,7 @@ const LoginPage = ({ onNavigate }) => {
         </div>
       </GlassCard>
     </div>
-    
   );
-  
 };
 
 // 2. SIGNUP SELECTION
@@ -241,16 +233,17 @@ const ClientSignup = ({ onNavigate }) => {
     const data = Object.fromEntries(formData);
     
     try {
-      const res = await fetch(`${API_URL}/signup_client`, {
+      const res = await fetch(`${API_URL}/api/auth/signup/client`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams(data)
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
       });
       if (res.ok) {
         alert('Account created! Please log in.');
         onNavigate('login'); 
       } else {
-        alert('Signup failed. Email might be taken.');
+        const errData = await res.json();
+        alert(errData.error || 'Signup failed.');
       }
     } catch (err) {
       console.error(err);
@@ -278,6 +271,10 @@ const ClientSignup = ({ onNavigate }) => {
           <div>
             <label className="block text-sm font-medium text-pink-500 mb-2">Password</label>
             <input type="password" name="password" required className="w-full p-3 rounded-lg bg-zinc-800 border border-pink-500/30 text-white focus:border-pink-500 outline-none" placeholder="••••••••" />
+          </div>
+          <div>
+             <label className="block text-sm font-medium text-pink-500 mb-2">Phone</label>
+             <input name="phone" required className="w-full p-3 rounded-lg bg-zinc-800 border border-pink-500/30 text-white focus:border-pink-500 outline-none" placeholder="06..." />
           </div>
           <Button3D type="submit" className="w-full">Create Account</Button3D>
         </form>
@@ -307,16 +304,18 @@ const CoiffeurSignup = ({ onNavigate }) => {
     const data = new FormData(formEl);
 
     try {
-        const response = await fetch(`${API_URL}/signup_coiffeur`, {
+        const response = await fetch(`${API_URL}/api/auth/signup/coiffeur`, {
             method: 'POST',
             body: data // Sending FormData directly for file upload support
         });
         
-        if (response.redirected) {
-             window.location.href = response.url; // Handle Flask redirect
-        } else {
-             alert("Application submitted! Please check your email.");
+        const resData = await response.json();
+
+        if (response.ok) {
+             alert("Application submitted! Please check your email for the confirmation code.");
              onNavigate('login');
+        } else {
+             alert(resData.error || "Signup failed");
         }
     } catch (err) {
         console.error("Signup failed", err);
@@ -407,7 +406,7 @@ const CoiffeurSignup = ({ onNavigate }) => {
   );
 };
 
-// 5. RESERVATION PAGE
+// 5. RESERVATION PAGE (FIXED)
 const ReservationPage = ({ stylistId, onNavigate, currentUser }) => {
   const [stylist, setStylist] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -418,7 +417,6 @@ const ReservationPage = ({ stylistId, onNavigate, currentUser }) => {
       .then(data => {
         setStylist({
           ...data,
-           // Ensure services map correctly if backend structure differs, otherwise assume structure is good
           services: data.menu ? data.menu.map((m, i) => ({ id: i, service_name: m.name, price: m.price })) : [] 
         });
         setLoading(false);
@@ -432,18 +430,20 @@ const ReservationPage = ({ stylistId, onNavigate, currentUser }) => {
   const handleReservation = async (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
-    const data = Object.fromEntries(formData);
-    // Add logic to get Service ID if needed by backend, or send name
     
     try {
-        // Since we are using a Form submit in app.py logic roughly
-        // We'll mimic the form action in React if possible or use fetch
-        // NOTE: The backend expects a Form POST to /reserve/<id>.
+        const response = await fetch(`${API_URL}/api/reserve/${stylistId}`, {
+            method: 'POST',
+            body: formData
+        });
+        const data = await response.json();
         
-        const form = e.target;
-        form.action = `${API_URL}/reserve/${stylistId}`;
-        form.method = "POST";
-        form.submit(); // Submit natively to handle Flask redirect logic easily
+        if (response.ok) {
+            alert("Reservation Request Sent!");
+            onNavigate(currentUser && currentUser.type === 'coiffeur' ? 'dashboard' : 'home');
+        } else {
+            alert("Error: " + (data.error || "Unknown error"));
+        }
     } catch(err) {
       alert("Error processing reservation.");
     }
@@ -465,7 +465,7 @@ const ReservationPage = ({ stylistId, onNavigate, currentUser }) => {
             <select name="service" required className="w-full px-4 py-3 rounded-lg bg-zinc-800 border border-pink-500/50 text-white focus:outline-none focus:ring-2 focus:ring-pink-500 transition duration-300">
               <option value="" disabled selected>-- Choose a Service --</option>
               {stylist.services && stylist.services.map(s => (
-                <option key={s.id} value={s.id || 1}>{s.service_name} ({s.price}€)</option>
+                <option key={s.id} value={s.id}>{s.service_name} ({s.price}€)</option>
               ))}
             </select>
           </div>
@@ -1601,10 +1601,16 @@ export default function App() {
     if (id) setCurrentStylistId(id);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      // Perform logout in background without leaving the SPA
+      await fetch(`${API_URL}/api/auth/logout`); 
+    } catch (err) {
+      console.error("Logout error", err);
+    }
+    // Update local state immediately
     setCurrentUser(null);
     navigate('home');
-    window.location.href = `${API_URL}/logout`;
   };
 
   if (checkingAuth) return <div className="min-h-screen bg-black flex items-center justify-center"><Loader className="w-10 h-10 text-pink-500 animate-spin" /></div>;
@@ -1624,7 +1630,19 @@ export default function App() {
         <main className="flex-grow pt-24 container mx-auto px-4 sm:px-6">
           {/* ROUTER SWITCH */}
           {currentPage === 'home' && <HomePage onNavigate={navigate} />}
-          {currentPage === 'login' && <LoginPage onNavigate={navigate} />}
+          {currentPage === 'login' && (
+            <LoginPage 
+              onNavigate={navigate} 
+              onLogin={(user) => {
+                  setCurrentUser(user);
+                  if(user.type === 'coiffeur') {
+                      navigate('dashboard');
+                  } else {
+                      navigate('home');
+                  }
+              }} 
+            />
+          )}
           {currentPage === 'signup' && <SignupSelection onNavigate={navigate} />}
           {currentPage === 'signup-client' && <ClientSignup onNavigate={navigate} />}
           {currentPage === 'signup-coiffeur' && <CoiffeurSignup onNavigate={navigate} />}

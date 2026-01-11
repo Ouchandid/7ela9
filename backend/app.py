@@ -13,9 +13,13 @@ from sqlalchemy.engine import Engine
 from sqlalchemy import or_
 import secrets
 from flask_mail import Mail, Message
+from flask_cors import CORS  # NEW: Import CORS
 
 # --- Configuration ---
 app = Flask(__name__, static_folder='static', static_url_path='/static')
+
+# --- NEW: Enable CORS for all routes (allows React frontend to fetch data) ---
+CORS(app) 
 
 # --- NEW: Load configuration dynamically from config.py ---
 try:
@@ -652,9 +656,10 @@ def api_get_stylists():
         })
     return jsonify(stylists)
 
-@app.route('/api/stylists/<int:id>', methods=['GET'])
-def api_get_stylist_detail(id):
-    data = get_coiffeur_data(id)
+# --- UPDATED: Route to get a single stylist by ID (matches URL /api/stylists/<int:stylist_id>) ---
+@app.route('/api/stylists/<int:stylist_id>', methods=['GET'])
+def api_get_stylist_detail(stylist_id):
+    data = get_coiffeur_data(stylist_id)
     if not data:
         return jsonify({'error': 'Stylist not found'}), 404
         

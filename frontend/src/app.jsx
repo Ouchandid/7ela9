@@ -145,7 +145,7 @@ const LoginPage = ({ onNavigate }) => {
         <h2 className="text-3xl font-extrabold text-white text-center mb-8">Welcome Back</h2>
         
         {/* Standard Form Submission to Flask Backend */}
-        <form action={`${API_URL}/login`} method="POST" className="space-y-6">
+        <form action={`${API_URL}/api/auth/login`} method="POST" className="space-y-6">
           <div>
             <label className="block text-sm font-medium text-pink-500 mb-2">Email</label>
             <input type="email" name="email" required className="w-full p-3 rounded-lg bg-zinc-800 border border-pink-500/30 text-white focus:border-pink-500 outline-none" placeholder="you@example.com" />

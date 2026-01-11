@@ -132,7 +132,7 @@ const LoginPage = ({ onNavigate }) => {
         <h2 className="text-3xl font-extrabold text-white text-center mb-8">Welcome Back</h2>
         
         {/* Standard Form Submission to Flask Backend */}
-        <form action="/login" method="POST" className="space-y-6">
+        <form action={`${import.meta.env.VITE_API_URL}/login`} method="POST" className="space-y-6">
           <div>
             <label className="block text-sm font-medium text-pink-500 mb-2">Email</label>
             <input type="email" name="email" required className="w-full p-3 rounded-lg bg-zinc-800 border border-pink-500/30 text-white focus:border-pink-500 outline-none" placeholder="you@example.com" />
@@ -193,7 +193,7 @@ const ClientSignup = ({ onNavigate }) => {
     const data = Object.fromEntries(formData);
     
     try {
-      const res = await fetch('/signup_client', {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/signup_client`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams(data)
@@ -259,7 +259,7 @@ const CoiffeurSignup = ({ onNavigate }) => {
     const data = new FormData(formEl);
 
     try {
-        const response = await fetch('/signup_coiffeur', {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/signup_coiffeur`, {
             method: 'POST',
             body: data // Sending FormData directly for file upload support
         });
@@ -365,7 +365,7 @@ const ReservationPage = ({ stylistId, onNavigate, currentUser }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`/api/stylists/${stylistId}`)
+    fetch(`${import.meta.env.VITE_API_URL}/api/stylists/${stylistId}`)
       .then(res => res.json())
       .then(data => {
         setStylist({
@@ -393,7 +393,7 @@ const ReservationPage = ({ stylistId, onNavigate, currentUser }) => {
         // NOTE: The backend expects a Form POST to /reserve/<id>.
         
         const form = e.target;
-        form.action = `/reserve/${stylistId}`;
+        form.action = `${import.meta.env.VITE_API_URL}/reserve/${stylistId}`;
         form.method = "POST";
         form.submit(); // Submit natively to handle Flask redirect logic easily
     } catch(err) {
@@ -465,7 +465,7 @@ const SearchPage = ({ onNavigate }) => {
 
   // Fetch initial data
   useEffect(() => {
-    fetch('/api/stylists')
+    fetch(`${import.meta.env.VITE_API_URL}/api/stylists`)
       .then(res => res.json())
       .then(data => {
         const list = Array.isArray(data) ? data : [];
@@ -591,7 +591,7 @@ const MapPage = ({ onNavigate }) => {
   const [stylists, setStylists] = useState([]);
 
   useEffect(() => {
-    fetch('/api/stylists')
+    fetch(`${import.meta.env.VITE_API_URL}/api/stylists`)
       .then(res => res.json())
       .then(data => setStylists(Array.isArray(data) ? data : []));
   }, []);
@@ -599,7 +599,7 @@ const MapPage = ({ onNavigate }) => {
   // Fixed Map Logic: Uses custom icons to prevent 404 errors
   useEffect(() => {
       if(isLeafletLoaded && window.L) {
-          fetch('/api/coiffeurs/locations')
+          fetch(`${import.meta.env.VITE_API_URL}/api/coiffeurs/locations`)
             .then(res => res.json())
             .then(locations => {
                 const container = document.getElementById('map-container');
@@ -682,7 +682,7 @@ const HomePage = ({ onNavigate }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/stylists')
+    fetch(`${import.meta.env.VITE_API_URL}/api/stylists`)
       .then(res => res.json())
       .then(data => {
         setStylists(Array.isArray(data) ? data : []); 
@@ -832,7 +832,7 @@ const ProfilePage = ({ stylistId, onNavigate, currentUser }) => {
 
   useEffect(() => {
     // REAL FETCH
-    fetch(`/api/stylists/${stylistId}`)
+    fetch(`${import.meta.env.VITE_API_URL}/api/stylists/${stylistId}`)
         .then(res => {
             if(!res.ok) throw new Error("Failed to load");
             return res.json();
@@ -1058,7 +1058,7 @@ const CoiffeurDashboard = ({ user, onNavigate }) => {
     if(!user) return;
     
     // 1. Fetch Profile Stats (Waiting, Capacity, Followers) & Menu
-    fetch(`/api/stylists/${user.id}`)
+    fetch(`${import.meta.env.VITE_API_URL}/api/stylists/${user.id}`)
         .then(res => res.json())
         .then(data => {
             if(!data.error) {
@@ -1073,7 +1073,7 @@ const CoiffeurDashboard = ({ user, onNavigate }) => {
         });
 
     // 2. Fetch Reservations
-    fetch(`/api/coiffeur/${user.id}/reservations`)
+    fetch(`${import.meta.env.VITE_API_URL}/api/coiffeur/${user.id}/reservations`)
         .then(res => res.json())
         .then(data => {
             if(Array.isArray(data)) setReservations(data);
@@ -1089,7 +1089,7 @@ const CoiffeurDashboard = ({ user, onNavigate }) => {
       formData.append('avatar_file', file);
 
       try {
-          const res = await fetch('/api/profile/upload_avatar', {
+          const res = await fetch(`${import.meta.env.VITE_API_URL}/api/profile/upload_avatar`, {
               method: 'POST',
               body: formData
           });
@@ -1113,7 +1113,7 @@ const CoiffeurDashboard = ({ user, onNavigate }) => {
       setStats(prev => ({ ...prev, waiting: newWaiting }));
 
       // Send to API
-      await fetch(`/api/stylists/${user.id}`, {
+      await fetch(`${import.meta.env.VITE_API_URL}/api/stylists/${user.id}`, {
           method: 'PUT',
           headers: {'Content-Type': 'application/json'},
           body: JSON.stringify({ waiting_count: newWaiting })
@@ -1127,7 +1127,7 @@ const CoiffeurDashboard = ({ user, onNavigate }) => {
       const data = Object.fromEntries(new FormData(form));
       
       try {
-          const res = await fetch('/api/coiffeur/menu', {
+          const res = await fetch(`${import.meta.env.VITE_API_URL}/api/coiffeur/menu`, {
               method: 'POST',
               headers: {'Content-Type': 'application/json'},
               body: JSON.stringify(data)
@@ -1151,7 +1151,7 @@ const CoiffeurDashboard = ({ user, onNavigate }) => {
       if(!confirm("Delete this menu item?")) return;
       
       try {
-          const res = await fetch(`/api/coiffeur/menu/${id}`, { method: 'DELETE' });
+          const res = await fetch(`${import.meta.env.VITE_API_URL}/api/coiffeur/menu/${id}`, { method: 'DELETE' });
           if(res.ok) {
               setMenuItems(menuItems.filter(m => m.id !== id)); // Adjust logic if ID is missing in frontend list
           }
@@ -1166,7 +1166,7 @@ const CoiffeurDashboard = ({ user, onNavigate }) => {
       const formData = new FormData(e.target);
       
       try {
-          const res = await fetch('/api/publications/with_images', {
+          const res = await fetch(`${import.meta.env.VITE_API_URL}/api/publications/with_images`, {
               method: 'POST',
               body: formData
           });
@@ -1189,7 +1189,7 @@ const CoiffeurDashboard = ({ user, onNavigate }) => {
 
     useEffect(() => {
         // Fetch current location
-        fetch('/api/coiffeurs/locations')
+        fetch(`${import.meta.env.VITE_API_URL}/api/coiffeurs/locations`)
             .then(res => res.json())
             .then(data => {
                 const myLoc = data.find(l => l.id === user.id);
@@ -1237,7 +1237,7 @@ const CoiffeurDashboard = ({ user, onNavigate }) => {
 
     const saveLocation = async () => {
         try {
-            const res = await fetch('/api/coiffeur/location', {
+            const res = await fetch(`${import.meta.env.VITE_API_URL}/api/coiffeur/location`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ latitude: loc.lat, longitude: loc.lng })
@@ -1529,7 +1529,7 @@ export default function App() {
 
   // Auth Check
   useEffect(() => {
-    fetch('/api/me')
+    fetch(`${import.meta.env.VITE_API_URL}/api/me`)
       .then(res => {
         if (res.ok) return res.json();
         throw new Error("Not logged in");
@@ -1556,7 +1556,7 @@ export default function App() {
   const handleLogout = () => {
     setCurrentUser(null);
     navigate('home');
-    window.location.href = '/logout';
+    window.location.href = `${import.meta.env.VITE_API_URL}/logout`;
   };
 
   if (checkingAuth) return <div className="min-h-screen bg-black flex items-center justify-center"><Loader className="w-10 h-10 text-pink-500 animate-spin" /></div>;

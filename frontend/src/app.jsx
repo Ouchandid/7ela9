@@ -139,13 +139,46 @@ const GlassCard = ({ children, className = '', hoverEffect = true }) => {
 
 // 1. LOGIN PAGE (NEW)
 const LoginPage = ({ onNavigate }) => {
+  const handleLogin = async (e) => {
+  e.preventDefault(); // prevent full page reload
+
+  // Collect form data
+  const formData = new FormData(e.target);
+  const email = formData.get("email");
+  const password = formData.get("password");
+
+  try {
+    const res = await fetch(`${API_URL}/api/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+
+    const data = await res.json();
+
+    if (res.ok && data.message === "Login successful") {
+      console.log("Logged in user:", data.user);
+      // Optional: store user in state or localStorage
+      // localStorage.setItem("user", JSON.stringify(data.user));
+
+      // Navigate to dashboard or another page
+      onNavigate("dashboard"); 
+    } else {
+      alert(data.error || "Login failed");
+    }
+  } catch (err) {
+    console.error("Login error:", err);
+    alert("An error occurred during login.");
+  }
+};
+
   return (
     <div className="flex justify-center py-12 px-4">
       <GlassCard className="w-full max-w-lg p-8 md:p-12">
         <h2 className="text-3xl font-extrabold text-white text-center mb-8">Welcome Back</h2>
         
         {/* Standard Form Submission to Flask Backend */}
-        <form action={`${API_URL}/api/auth/login`} method="POST" className="space-y-6">
+        <form onSubmit={handleLogin} className="space-y-6">
           <div>
             <label className="block text-sm font-medium text-pink-500 mb-2">Email</label>
             <input type="email" name="email" required className="w-full p-3 rounded-lg bg-zinc-800 border border-pink-500/30 text-white focus:border-pink-500 outline-none" placeholder="you@example.com" />
@@ -167,7 +200,9 @@ const LoginPage = ({ onNavigate }) => {
         </div>
       </GlassCard>
     </div>
+    
   );
+  
 };
 
 // 2. SIGNUP SELECTION

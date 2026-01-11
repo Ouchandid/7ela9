@@ -4,7 +4,7 @@ import json
 import math
 from datetime import datetime, timedelta
 # Import secrets for token generation and mail sending mock
-from flask import Flask, request, session, jsonify, send_from_directory, abort
+from flask import Flask, request, session, jsonify, send_from_directory, abort, redirect
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.utils import secure_filename
 from sqlalchemy import func, event
@@ -19,7 +19,8 @@ from flask_cors import CORS  # NEW: Import CORS
 app = Flask(__name__, static_folder='static', static_url_path='/static')
 
 # --- NEW: Enable CORS for all routes (allows React frontend to fetch data) ---
-CORS(app) 
+# Updated to support credentials (cookies) for session management
+CORS(app, supports_credentials=True)
 
 # --- NEW: Load configuration dynamically from config.py ---
 try:
@@ -375,9 +376,17 @@ with app.app_context():
 
 @app.route('/api/auth/login', methods=['POST'])
 def api_login():
-    data = request.get_json()
-    email = data.get('email')
-    password = data.get('password')
+    # Handle both JSON and Form Data (frontend uses Form Post for login)
+    email = None
+    password = None
+    
+    if request.is_json:
+        data = request.get_json()
+        email = data.get('email')
+        password = data.get('password')
+    else:
+        email = request.form.get('email')
+        password = request.form.get('password')
     
     user = User.query.filter_by(email=email, password=password).first() 
     
@@ -405,7 +414,7 @@ def api_login():
     
     return jsonify({'error': 'Invalid email or password'}), 401
 
-@app.route('/api/auth/logout', methods=['POST'])
+@app.route('/api/auth/logout', methods=['POST', 'GET']) # Allow GET for simple link logout
 def api_logout():
     session.pop('user_id', None)
     session.pop('user_type', None)
@@ -414,6 +423,10 @@ def api_logout():
 @app.route('/api/auth/signup/client', methods=['POST'])
 def api_signup_client():
     data = request.get_json()
+    # Handle case where it might be form data
+    if not data and request.form:
+        data = request.form
+
     if User.query.filter_by(email=data.get('email')).first():
         return jsonify({'error': 'Email already registered'}), 400
 
@@ -565,7 +578,8 @@ def api_me():
             'email': user.email,
             'type': user.type,
             'city': user.city,
-            'isConfirmed': user.is_confirmed
+            'isConfirmed': user.is_confirmed,
+            'image': user.coiffeur.profile_image if user.type == 'coiffeur' and user.coiffeur else None
         })
     return jsonify(None), 401
 
@@ -657,8 +671,21 @@ def api_get_stylists():
     return jsonify(stylists)
 
 # --- UPDATED: Route to get a single stylist by ID (matches URL /api/stylists/<int:stylist_id>) ---
-@app.route('/api/stylists/<int:stylist_id>', methods=['GET'])
+# --- ADDED: PUT method to update stylist status (waiting queue) ---
+@app.route('/api/stylists/<int:stylist_id>', methods=['GET', 'PUT'])
 def api_get_stylist_detail(stylist_id):
+    if request.method == 'PUT':
+        if not is_logged_in() or session['user_id'] != stylist_id:
+            return jsonify({'error': 'Unauthorized'}), 403
+        
+        data = request.get_json()
+        coiffeur = Coiffeur.query.get(stylist_id)
+        if 'waiting_count' in data:
+            coiffeur.people_waiting = data['waiting_count']
+        
+        db.session.commit()
+        return jsonify({'message': 'Updated'}), 200
+
     data = get_coiffeur_data(stylist_id)
     if not data:
         return jsonify({'error': 'Stylist not found'}), 404
@@ -716,6 +743,38 @@ def api_add_stylist_comment(id):
     db.session.commit()
     return jsonify({'message': 'Comment added'}), 201
 
+# --- UPDATED: Reserve route handling form data from URL /api/reserve/<id> ---
+@app.route('/api/reserve/<int:coiffeur_id>', methods=['POST'])
+def api_reserve_form(coiffeur_id):
+    if not is_logged_in():
+        return jsonify({'error': 'Login required'}), 403
+    
+    # Handle form data
+    if request.form:
+        data = request.form
+    else:
+        data = request.get_json()
+        
+    try:
+        # Determine service id if passed, otherwise default to None
+        service_id = data.get('service') if data.get('service') else None
+        
+        new_res = Reservation(
+            client_id=session['user_id'],
+            coiffeur_id=coiffeur_id,
+            service_id=service_id,
+            date=datetime.strptime(data['date'], '%Y-%m-%d').date(),
+            time=datetime.strptime(data['time'], '%H:%M').time(),
+            notes=data.get('notes'),
+            status='Pending'
+        )
+        db.session.add(new_res)
+        db.session.commit()
+        return jsonify({'message': 'Reservation submitted', 'id': new_res.id}), 201
+    except Exception as e:
+        print(e)
+        return jsonify({'error': str(e)}), 400
+
 @app.route('/api/reserve', methods=['POST'])
 def api_reserve():
     if not is_logged_in() or session['user_type'] != 'client':
@@ -737,6 +796,27 @@ def api_reserve():
         return jsonify({'message': 'Reservation submitted', 'id': new_res.id}), 201
     except Exception as e:
         return jsonify({'error': str(e)}), 400
+
+# --- ADDED: Fetch reservations for a coiffeur dashboard ---
+@app.route('/api/coiffeur/<int:id>/reservations', methods=['GET'])
+def api_get_coiffeur_reservations(id):
+    if not is_logged_in() or session['user_id'] != id:
+        return jsonify({'error': 'Unauthorized'}), 403
+        
+    reservations = Reservation.query.filter_by(coiffeur_id=id).order_by(Reservation.date, Reservation.time).all()
+    
+    res_list = []
+    for r in reservations:
+        res_list.append({
+            'id': r.id,
+            'client_name': r.client.name,
+            'service': r.service_detail.service_name if r.service_detail else 'General',
+            'date': str(r.date),
+            'time': str(r.time),
+            'status': r.status,
+            'notes': r.notes
+        })
+    return jsonify(res_list)
 
 @app.route('/api/coiffeur/menu', methods=['POST'])
 def api_add_menu():
@@ -762,6 +842,39 @@ def api_delete_menu(id):
         db.session.commit()
         return jsonify({'message': 'Deleted'}), 200
     return jsonify({'error': 'Not found'}), 404
+
+# --- ADDED: Update coiffeur location ---
+@app.route('/api/coiffeur/location', methods=['POST'])
+def api_update_location():
+    if not is_logged_in() or session['user_type'] != 'coiffeur':
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    data = request.get_json()
+    coiffeur = Coiffeur.query.get(session['user_id'])
+    coiffeur.latitude = data.get('latitude')
+    coiffeur.longitude = data.get('longitude')
+    coiffeur.location_updated_at = datetime.utcnow()
+    db.session.commit()
+    return jsonify({'message': 'Location updated'}), 200
+
+# --- ADDED: Get all coiffeur locations for map ---
+@app.route('/api/coiffeurs/locations', methods=['GET'])
+def api_get_all_locations():
+    active_coiffeurs = db.session.query(User, Coiffeur).join(Coiffeur).filter(
+        Coiffeur.latitude.is_not(None), Coiffeur.status == 'active'
+    ).all()
+    
+    locations = []
+    for user, coif in active_coiffeurs:
+        locations.append({
+            'id': user.id, 
+            'name': user.name,
+            'lat': coif.latitude, 
+            'lng': coif.longitude,
+            'address': coif.address,
+            'category': coif.category
+        })
+    return jsonify(locations)
 
 @app.route('/api/coiffeurs/nearby', methods=['GET'])
 def api_nearby():
@@ -825,6 +938,32 @@ def api_create_pub():
     db.session.add(pub)
     db.session.commit()
     return jsonify({'message': 'Published', 'id': pub.id}), 201
+
+# --- ADDED: Profile Image Upload ---
+@app.route('/api/profile/upload_avatar', methods=['POST'])
+def api_upload_avatar():
+    if not is_logged_in() or session['user_type'] != 'coiffeur':
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    if 'avatar_file' not in request.files:
+        return jsonify({'error': 'No file part'}), 400
+        
+    file = request.files['avatar_file']
+    if file and allowed_file(file.filename):
+        fname = secure_filename(file.filename)
+        uniq = f"avatar_{session['user_id']}_{int(datetime.now().timestamp())}_{fname}"
+        fpath = os.path.join(app.config['UPLOAD_FOLDER'], uniq)
+        file.save(fpath)
+        
+        # Update user/coiffeur record
+        coiffeur = Coiffeur.query.get(session['user_id'])
+        img_url = f'/static/uploads/{uniq}'
+        coiffeur.profile_image = img_url
+        db.session.commit()
+        
+        return jsonify({'message': 'Avatar updated', 'image_url': img_url}), 200
+    
+    return jsonify({'error': 'Invalid file'}), 400
 
 # --- Catch-All for React Frontend ---
 

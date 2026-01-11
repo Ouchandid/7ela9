@@ -14,6 +14,8 @@ from sqlalchemy import or_
 import secrets
 from flask_mail import Mail, Message
 from flask_cors import CORS  # NEW: Import CORS
+import boto3 # NEW: Import boto3 for AWS S3
+from botocore.exceptions import NoCredentialsError
 
 # --- Configuration ---
 app = Flask(__name__, static_folder='static', static_url_path='/static')
@@ -48,7 +50,7 @@ app.config['MAIL_DEFAULT_SENDER'] = 'contact@7ela9.com'
 db = SQLAlchemy(app)
 mail = Mail(app)
 
-# Define file upload path
+# Define file upload path (Kept for fallback, though S3 is primary now)
 UPLOAD_FOLDER = 'static/uploads'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'} 
@@ -56,10 +58,51 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
+# --- AWS S3 Client Setup ---
+s3_client = boto3.client(
+    's3',
+    aws_access_key_id=app.config.get('AWS_ACCESS_KEY_ID'),
+    aws_secret_access_key=app.config.get('AWS_SECRET_ACCESS_KEY'),
+    region_name=app.config.get('AWS_REGION')
+)
+
 # --- Utility for File Upload Validation ---
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+# --- Utility for S3 Upload ---
+def upload_file_to_s3(file, prefix='upload'):
+    """
+    Uploads a file to S3 and returns the public URL.
+    Uses the existing naming convention pattern.
+    """
+    try:
+        filename = secure_filename(file.filename)
+        # Generate unique filename similar to existing logic
+        timestamp = int(datetime.now().timestamp())
+        # Use session user_id if available, else 'anon'
+        user_id = session.get('user_id', 'anon')
+        unique_filename = f"{prefix}_{user_id}_{timestamp}_{filename}"
+        
+        bucket_name = app.config.get('BUCKET_NAME')
+        region = app.config.get('AWS_REGION')
+        
+        s3_client.upload_fileobj(
+            file,
+            bucket_name,
+            unique_filename,
+            ExtraArgs={
+                "ACL": "public-read",
+                "ContentType": file.content_type
+            }
+        )
+        
+        return f"https://{bucket_name}.s3.{region}.amazonaws.com/{unique_filename}"
+    
+    except Exception as e:
+        print(f"S3 Upload Error: {e}")
+        return None
 
 # --- Utility Functions for Email ---
 
@@ -461,11 +504,10 @@ def api_signup_coiffeur():
     if 'virement_proof' in request.files:
         file = request.files['virement_proof']
         if file and allowed_file(file.filename):
-            filename = secure_filename(file.filename)
-            unique_filename = f"virement_{email.split('@')[0]}_{int(datetime.now().timestamp())}_{filename}"
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
-            file.save(filepath)
-            virement_proof_path = f'/static/uploads/{unique_filename}'
+            # UPDATE: Use S3 upload instead of local save
+            uploaded_url = upload_file_to_s3(file, prefix='virement')
+            if uploaded_url:
+                virement_proof_path = uploaded_url
     
     try:
         code = generate_confirmation_token()
@@ -918,6 +960,28 @@ def api_subscribe(id):
     db.session.commit()
     return jsonify({'message': 'Updated'}), 200
 
+# --- NEW: General Upload Route ---
+@app.route('/api/upload', methods=['POST'])
+def api_upload_file():
+    """
+    Handles file uploads from the frontend and returns the public S3 URL.
+    """
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file part'}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+        
+    if file and allowed_file(file.filename):
+        uploaded_url = upload_file_to_s3(file, prefix='upload')
+        if uploaded_url:
+            return jsonify({'url': uploaded_url}), 200
+        else:
+            return jsonify({'error': 'Upload failed'}), 500
+            
+    return jsonify({'error': 'File type not allowed'}), 400
+
 @app.route('/api/publications/with_images', methods=['POST'])
 def api_create_pub():
     if not is_logged_in() or session['user_type'] != 'coiffeur':
@@ -928,11 +992,10 @@ def api_create_pub():
     
     for file in request.files.getlist('pub_images'):
         if file and allowed_file(file.filename):
-            fname = secure_filename(file.filename)
-            uniq = f"pub_{session['user_id']}_{int(datetime.now().timestamp())}_{fname}"
-            fpath = os.path.join(app.config['UPLOAD_FOLDER'], uniq)
-            file.save(fpath)
-            images.append(f'/static/uploads/{uniq}')
+            # UPDATE: Use S3 upload instead of local save
+            uploaded_url = upload_file_to_s3(file, prefix='pub')
+            if uploaded_url:
+                images.append(uploaded_url)
             
     pub = Publication(author_id=session['user_id'], text=text, images=json.dumps(images))
     db.session.add(pub)
@@ -950,18 +1013,18 @@ def api_upload_avatar():
         
     file = request.files['avatar_file']
     if file and allowed_file(file.filename):
-        fname = secure_filename(file.filename)
-        uniq = f"avatar_{session['user_id']}_{int(datetime.now().timestamp())}_{fname}"
-        fpath = os.path.join(app.config['UPLOAD_FOLDER'], uniq)
-        file.save(fpath)
+        # UPDATE: Use S3 upload instead of local save
+        uploaded_url = upload_file_to_s3(file, prefix='avatar')
         
-        # Update user/coiffeur record
-        coiffeur = Coiffeur.query.get(session['user_id'])
-        img_url = f'/static/uploads/{uniq}'
-        coiffeur.profile_image = img_url
-        db.session.commit()
-        
-        return jsonify({'message': 'Avatar updated', 'image_url': img_url}), 200
+        if uploaded_url:
+            # Update user/coiffeur record
+            coiffeur = Coiffeur.query.get(session['user_id'])
+            coiffeur.profile_image = uploaded_url
+            db.session.commit()
+            
+            return jsonify({'message': 'Avatar updated', 'image_url': uploaded_url}), 200
+        else:
+            return jsonify({'error': 'Upload to S3 failed'}), 500
     
     return jsonify({'error': 'Invalid file'}), 400
 

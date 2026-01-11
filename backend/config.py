@@ -43,6 +43,12 @@ class Config:
         # For other databases like MySQL (local fallback)
         SQLALCHEMY_DATABASE_URI = DATABASE_URL
 
+    # --- AWS S3 Configuration ---
+    AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
+    AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
+    AWS_REGION = os.environ.get('AWS_REGION', 'eu-north-1') # Default fallback
+    BUCKET_NAME = os.environ.get('BUCKET_NAME')
+
 
 # You can define a separate config for production if you want
 class DevelopmentConfig(Config):

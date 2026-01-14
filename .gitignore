@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+instance/
+*.pyc
+
+# Frontend
+node_modules/
+frontend/node_modules/
+
+# Static & uploads
+backend/static/uploads/
+static/uploads/
+*.png
+*.jpg
+*.mp4
+
+# Env

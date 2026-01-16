@@ -1,32 +1,42 @@
-import React from 'react';
-import { Scissors, Mail, Lock } from 'lucide-react';
+import React, { useState } from 'react';
+import { Scissors, Mail, Lock, Loader } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 import GlassCard from '../UI/GlassCard';
 import Button3D from '../UI/Button3D';
 
-const LoginPage = ({ onNavigate, onLogin }) => {
+const LoginPage = ({ onNavigate }) => {
+  const { login } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
+    setError('');
+
     const formData = new FormData(e.target);
-    
+    const email = formData.get('email');
+    const password = formData.get('password');
+
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/auth/login`, {
-        method: 'POST',
-        body: formData
-      });
-      const data = await res.json();
+      const result = await login(email, password);
       
-      if (res.ok) {
-        if (onLogin) {
-          onLogin(data.user);
+      if (result.success) {
+        // La navigation se fait automatiquement via le contexte
+        // Vous pouvez rediriger vers la page appropriée
+        if (result.data.type === 'coiffeur') {
+          onNavigate('dashboard');
         } else {
-          window.location.reload();
+          onNavigate('home');
         }
       } else {
-        alert(data.error || 'Login failed');
+        setError(result.error || 'Login failed');
       }
     } catch (err) {
       console.error(err);
-      alert('Network error during login');
+      setError('Network error during login');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -41,6 +51,12 @@ const LoginPage = ({ onNavigate, onLogin }) => {
           <p className="text-gray-400">Sign in to your account</p>
         </div>
         
+        {error && (
+          <div className="mb-6 p-3 rounded-lg bg-red-500/10 border border-red-500/30">
+            <p className="text-red-400 text-sm text-center">{error}</p>
+          </div>
+        )}
+        
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
             <label className="block text-sm font-medium text-pink-500">Email</label>
@@ -50,7 +66,8 @@ const LoginPage = ({ onNavigate, onLogin }) => {
                 type="email" 
                 name="email" 
                 required 
-                className="w-full pl-12 pr-4 py-3 rounded-lg bg-zinc-800 border border-pink-500/30 text-white focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20 outline-none transition-all"
+                disabled={loading}
+                className="w-full pl-12 pr-4 py-3 rounded-lg bg-zinc-800 border border-pink-500/30 text-white focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20 outline-none transition-all disabled:opacity-50"
                 placeholder="you@example.com" 
               />
             </div>
@@ -64,7 +81,8 @@ const LoginPage = ({ onNavigate, onLogin }) => {
                 type="password" 
                 name="password" 
                 required 
-                className="w-full pl-12 pr-4 py-3 rounded-lg bg-zinc-800 border border-pink-500/30 text-white focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20 outline-none transition-all"
+                disabled={loading}
+                className="w-full pl-12 pr-4 py-3 rounded-lg bg-zinc-800 border border-pink-500/30 text-white focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20 outline-none transition-all disabled:opacity-50"
                 placeholder="••••••••" 
               />
             </div>
@@ -72,16 +90,37 @@ const LoginPage = ({ onNavigate, onLogin }) => {
           
           <div className="flex items-center justify-between">
             <label className="flex items-center space-x-2">
-              <input type="checkbox" className="rounded bg-zinc-800 border-pink-500/30 text-pink-500" />
+              <input 
+                type="checkbox" 
+                name="remember" 
+                disabled={loading}
+                className="rounded bg-zinc-800 border-pink-500/30 text-pink-500 disabled:opacity-50" 
+              />
               <span className="text-sm text-gray-400">Remember me</span>
             </label>
-            <a href="#" className="text-sm text-pink-500 hover:text-pink-400 transition-colors">
+            <button 
+              type="button" 
+              onClick={() => onNavigate('forgot-password')}
+              className="text-sm text-pink-500 hover:text-pink-400 transition-colors disabled:opacity-50"
+              disabled={loading}
+            >
               Forgot password?
-            </a>
+            </button>
           </div>
           
-          <Button3D type="submit" className="w-full py-4 text-lg">
-            Sign In
+          <Button3D 
+            type="submit" 
+            className="w-full py-4 text-lg"
+            disabled={loading}
+          >
+            {loading ? (
+              <div className="flex items-center justify-center gap-2">
+                <Loader className="w-5 h-5 animate-spin" />
+                <span>Signing in...</span>
+              </div>
+            ) : (
+              'Sign In'
+            )}
           </Button3D>
         </form>
 
@@ -95,7 +134,12 @@ const LoginPage = ({ onNavigate, onLogin }) => {
             </div>
           </div>
           
-          <Button3D variant="outline" className="w-full" onClick={() => onNavigate('signup')}>
+          <Button3D 
+            variant="outline" 
+            className="w-full" 
+            onClick={() => onNavigate('signup')}
+            disabled={loading}
+          >
             Create Account
           </Button3D>
           

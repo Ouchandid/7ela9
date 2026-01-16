@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Loader } from 'lucide-react';
 import Navbar from './components/UI/Navbar';
 import Footer from './components/Layout/Footer';
@@ -14,37 +15,11 @@ import ReservationPage from './components/Pages/ReservationPage';
 import DeplacementRequestPage from './components/Pages/DeplacementRequestPage';
 import CoiffeurDashboard from './components/Pages/CoiffeurDashboard';
 
-export default function App() {
+// Composant principal avec accès au contexte
+const AppContent = () => {
+  const { user, loading, logout } = useAuth();
   const [currentPage, setCurrentPage] = useState('home');
   const [currentStylistId, setCurrentStylistId] = useState(null);
-  const [currentUser, setCurrentUser] = useState(null);
-  const [checkingAuth, setCheckingAuth] = useState(true);
-
-  const API_URL = (() => {
-    try {
-      return (import.meta && import.meta.env && import.meta.env.VITE_API_URL) || '';
-    } catch (e) {
-      return '';
-    }
-  })();
-
-  useEffect(() => {
-    fetch(`${API_URL}/api/me`)
-      .then(res => {
-        if (res.ok) return res.json();
-        throw new Error("Not logged in");
-      })
-      .then(data => {
-        setCurrentUser(data);
-        setCheckingAuth(false);
-        if (data && (data.type === 'coiffeur' || data.role === 'coiffeur')) {
-          setCurrentPage('dashboard');
-        }
-      })
-      .catch(() => {
-        setCheckingAuth(false);
-      });
-  }, [API_URL]);
 
   const navigate = (page, id = null) => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -53,28 +28,23 @@ export default function App() {
   };
 
   const handleLogout = async () => {
-    try {
-      await fetch(`${API_URL}/api/auth/logout`);
-    } catch (err) {
-      console.error("Logout error", err);
-    }
-    setCurrentUser(null);
+    await logout();
     navigate('home');
   };
 
-  const handleLogin = (user) => {
-    setCurrentUser(user);
-    if (user.type === 'coiffeur') {
-      navigate('dashboard');
-    } else {
-      navigate('home');
-    }
-  };
-
-  if (checkingAuth) {
+  // Afficher un loader pendant la vérification de session
+  if (loading) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
-        <Loader className="w-10 h-10 text-pink-500 animate-spin" />
+        <div className="text-center">
+          <div className="relative mb-4">
+            <div className="w-16 h-16 border-4 border-pink-500/20 border-t-pink-500 rounded-full animate-spin mx-auto"></div>
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+              <Loader className="w-6 h-6 text-pink-500 animate-pulse" />
+            </div>
+          </div>
+          <p className="text-gray-400 text-sm">Chargement de votre session...</p>
+        </div>
       </div>
     );
   }
@@ -89,21 +59,23 @@ export default function App() {
       </div>
 
       <div className="relative z-10 flex flex-col min-h-screen">
-        <Navbar user={currentUser} onNavigate={navigate} onLogout={handleLogout} />
+        <Navbar user={user} onNavigate={navigate} onLogout={handleLogout} />
 
         <main className="flex-grow pt-20 md:pt-24">
           {/* ROUTER SWITCH */}
           {currentPage === 'home' && <HomePage onNavigate={navigate} />}
-          {currentPage === 'login' && <LoginPage onNavigate={navigate} onLogin={handleLogin} />}
+          {currentPage === 'login' && <LoginPage onNavigate={navigate} />}
           {currentPage === 'signup' && <SignupSelection onNavigate={navigate} />}
           {currentPage === 'signup-client' && <ClientSignup onNavigate={navigate} />}
           {currentPage === 'signup-coiffeur' && <CoiffeurSignup onNavigate={navigate} />}
           {currentPage === 'search' && <SearchPage onNavigate={navigate} />}
-          {currentPage === 'profile' && <ProfilePage stylistId={currentStylistId} onNavigate={navigate} currentUser={currentUser} />}
-          {currentPage === 'reservation' && <ReservationPage stylistId={currentStylistId} onNavigate={navigate} currentUser={currentUser} />}
+          {currentPage === 'profile' && <ProfilePage stylistId={currentStylistId} onNavigate={navigate} currentUser={user} />}
+          {currentPage === 'reservation' && <ReservationPage stylistId={currentStylistId} onNavigate={navigate} currentUser={user} />}
           {currentPage === 'request-mobile' && <DeplacementRequestPage onNavigate={navigate} />}
           {currentPage === 'map' && <MapPage onNavigate={navigate} />}
-          {currentPage === 'dashboard' && <CoiffeurDashboard user={currentUser} onNavigate={navigate} />}
+          {currentPage === 'dashboard' && user?.type === 'coiffeur' && (
+            <CoiffeurDashboard user={user} onNavigate={navigate} />
+          )}
         </main>
 
         <Footer />
@@ -120,4 +92,15 @@ export default function App() {
       `}</style>
     </div>
   );
-}
+};
+
+// Wrapper avec AuthProvider
+const App = () => {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
+  );
+};
+
+export default App;
